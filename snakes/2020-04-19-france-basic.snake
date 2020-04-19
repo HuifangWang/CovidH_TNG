@@ -1,0 +1,64 @@
+from src import data
+import pandas as pd
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'france_mobility_report.csv'),
+        os.path.join(data.data_root, 'processed', 'france_covid19.csv'),
+
+rule google_mobility_report_FR:
+    input: 
+        mobility_report = os.path.join(
+                data.data_root, 'external','Global_Mobility_Report.csv'
+        ),
+    output:
+        fr_report = os.path.join(data.data_root, 'processed', 'france_mobility_report.csv'),
+    run:
+        df  = pd.read_csv(
+                input.mobility_report,
+                parse_dates=['date']
+        )
+
+        df_france = df.loc[
+            (df['country_region_code']=='FR') &
+            pd.isna(df['sub_region_1'])
+            , [
+                'date',
+                'retail_and_recreation_percent_change_from_baseline',
+                'grocery_and_pharmacy_percent_change_from_baseline',
+                'parks_percent_change_from_baseline',
+                'transit_stations_percent_change_from_baseline',
+                'workplaces_percent_change_from_baseline',
+                'residential_percent_change_from_baseline'
+            ]
+        ].set_index('date')
+
+        df_france.to_csv(output.fr_report)
+        
+
+rule covid_FR:
+    input:
+        covid19 = os.path.join(
+                data.data_root, 
+                'external', 'datahub-covid-19', 'time-series-19-covid-combined_csv.csv'
+        ),
+    output:
+        fr_covid19 = os.path.join(data.data_root, 'processed', 'france_covid19.csv'),
+    run:
+        df  = pd.read_csv( input.covid19, parse_dates=['Date'])
+
+        df_france = df.loc[
+                (df['Country/Region']=='France') &
+                pd.isna(df['Province/State']),
+                [
+                    'Date',
+                    'Confirmed',
+                    'Recovered',
+                    'Deaths'
+                ]
+        ].set_index('Date')
+
+        df_france.to_csv(output.fr_covid19)
+
+
+        
