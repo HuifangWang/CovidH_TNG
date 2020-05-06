@@ -10,15 +10,30 @@ data_root = os.path.abspath(
         )
 )
 
-def load_google_mobility_france():
+google_country_codes = {
+        'france': 'FR',
+        'germany': 'DE'
+}
+
+apple_country_codes = {
+        'france': 'France',
+        'germany': 'Germany'
+}
+
+datahub_country_codes = {
+        'france': 'France',
+        'germany': 'Germany'
+}
+
+def load_mobility(country='france', provider='google'):
     return pd.read_csv(
-            os.path.join(data_root, 'processed','france_mobility_report.csv'),
+            os.path.join(data_root, 'processed',f'{country}_{provider}_mobility_report.csv'),
             parse_dates=['date']
     ).set_index('date')
 
-def load_covid19_france():
+def load_covid19(country='france'):
     return pd.read_csv(
             os.path.join(
-                data_root, 'processed', 'france_covid19.csv'),
+                data_root, 'processed', f'{country}_covid19.csv'),
             parse_dates=['Date']
     ).set_index('Date')
