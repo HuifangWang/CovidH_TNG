@@ -1,4 +1,5 @@
 pandas
+pyreadstat
 jupyterlab
 seaborn
 snakemake
