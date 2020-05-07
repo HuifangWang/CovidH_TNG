@@ -25,9 +25,10 @@ datahub_country_codes = {
         'germany': 'Germany'
 }
 
-def load_mobility(country='france', provider='google'):
+def load_mobility(country='france', provider='google', agregate=''):
+    fname = f'{country}_{provider}_mobility_report{"_" + agregate if agregate else ""}.csv'
     return pd.read_csv(
-            os.path.join(data_root, 'processed',f'{country}_{provider}_mobility_report.csv'),
+            os.path.join( data_root, 'processed',fname ),
             parse_dates=['date']
     ).set_index('date')
 
