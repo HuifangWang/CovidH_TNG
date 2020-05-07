@@ -2,3 +2,4 @@ pandas
 jupyterlab
 seaborn
 snakemake
+sklearn

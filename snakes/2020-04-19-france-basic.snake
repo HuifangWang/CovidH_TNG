@@ -1,35 +1,27 @@
 from src import data
 import pandas as pd
 
-
 rule all:
     input:
-        os.path.join(data.data_root, 'processed', 'france_google_mobility_report.csv'),
-        os.path.join(data.data_root, 'processed', 'france_apple_mobility_report.csv'),
+        os.path.join(data.data_root, 'processed', 'france_mobility_report.csv'),
         os.path.join(data.data_root, 'processed', 'france_covid19.csv'),
-        os.path.join(data.data_root, 'processed', 'germany_google_mobility_report.csv'),
-        os.path.join(data.data_root, 'processed', 'germany_apple_mobility_report.csv'),
-        os.path.join(data.data_root, 'processed', 'germany_covid19.csv'),
 
-rule google_mobility_report:
+rule google_mobility_report_FR:
     input: 
         mobility_report = os.path.join(
-                data.data_root, 'external', 'google_mobility_report', 'Global_Mobility_Report.csv'
+                data.data_root, 'external','Global_Mobility_Report.csv'
         ),
     output:
-        report = os.path.join(
-                data.data_root, 'processed', '{country}_google_mobility_report.csv'
-        ),
+        fr_report = os.path.join(data.data_root, 'processed', 'france_mobility_report.csv'),
     run:
         df  = pd.read_csv(
                 input.mobility_report,
                 parse_dates=['date']
         )
 
-        df = df.loc[
-            (
-                df['country_region_code']==data.google_country_codes[wildcards.country]) 
-                & pd.isna(df['sub_region_1'])
+        df_france = df.loc[
+            (df['country_region_code']=='FR') &
+            pd.isna(df['sub_region_1'])
             , [
                 'date',
                 'retail_and_recreation_percent_change_from_baseline',
@@ -41,41 +33,23 @@ rule google_mobility_report:
             ]
         ].set_index('date')
 
-        df.to_csv(output.report)
-
-rule apple_mobility_report:
-    input: 
-        mobility_report = os.path.join(
-                data.data_root, 'external', 'apple_mobility_report', 'applemobilitytrends-latest.csv'
-        ),
-    output:
-        report = os.path.join(
-                data.data_root, 'processed', '{country}_apple_mobility_report.csv'
-        ),
-    run:
-        df  = pd.read_csv(input.mobility_report)
-
-        df = df[(df.geo_type=='country/region') & (df.region==data.apple_country_codes[wildcards.country])].T
-        df.columns = df.loc['transportation_type']
-        df = df.drop(['geo_type', 'region', 'transportation_type', 'alternative_name'],axis=0)
-
-        df.to_csv(output.report,index_label='date')
+        df_france.to_csv(output.fr_report)
         
 
-rule covid:
+rule covid_FR:
     input:
-        covid19_all = os.path.join(
+        covid19 = os.path.join(
                 data.data_root, 
                 'external', 'datahub-covid-19', 'time-series-19-covid-combined_csv.csv'
         ),
     output:
-        covid19_country = os.path.join(data.data_root, 'processed', '{country}_covid19.csv'),
+        fr_covid19 = os.path.join(data.data_root, 'processed', 'france_covid19.csv'),
     run:
-        df  = pd.read_csv( input.covid19_all, parse_dates=['Date'])
+        df  = pd.read_csv( input.covid19, parse_dates=['Date'])
 
-        df = df.loc[
-                (df['Country/Region']==data.datahub_country_codes[wildcards.country])
-                & pd.isna(df['Province/State']),
+        df_france = df.loc[
+                (df['Country/Region']=='France') &
+                pd.isna(df['Province/State']),
                 [
                     'Date',
                     'Confirmed',
@@ -84,7 +58,7 @@ rule covid:
                 ]
         ].set_index('Date')
 
-        df.to_csv(output.covid19_country)
+        df_france.to_csv(output.fr_covid19)
 
 
         
