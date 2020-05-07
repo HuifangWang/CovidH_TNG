@@ -38,3 +38,16 @@ def load_covid19(country='france'):
                 data_root, 'processed', f'{country}_covid19.csv'),
             parse_dates=['Date']
     ).set_index('Date')
+
+def date_index_to_days(df, day0):
+    """
+    Recalculates index of a pandas DataFrame to days from given day0.
+    
+    Parameters
+    ----------
+    df : instance of pandas.DataFrame
+        Dataframe with DatetimeIndex index.
+    day0: instance of pands.Timestamp 
+        Date of the day_0.
+    """
+    return df.set_index((df.index - day0).days)
