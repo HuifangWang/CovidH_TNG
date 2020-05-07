@@ -1,3 +1,0 @@
-[submodule "data/external/COVID-19"]
-	path = data/external/COVID-19
-	url = https://github.com/CSSEGISandData/COVID-19
