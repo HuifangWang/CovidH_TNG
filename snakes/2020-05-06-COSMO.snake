@@ -1,0 +1,41 @@
+from src import data
+import pandas as pd
+from sklearn.decomposition import PCA
+
+dates = [
+    '2020-03-04',
+    '2020-03-11',
+    '2020-03-18',
+    '2020-03-25',
+    '2020-04-01',
+    '2020-04-08',
+    '2020-04-15',
+    '2020-04-22',
+    '2020-04-29',
+]
+
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'germany_cosmo_phi.csv'),
+
+
+rule germany_COSMO:
+    input:
+        cosmo_raw = os.path.join(
+                data.data_root, 'external', 'COSMO', 'INSERM.sav'
+        ),
+    output:
+        cosmo_phi = os.path.join(data.data_root, 'processed', 'germany_cosmo_phi.csv'),
+    run:
+        df = pd.read_spss(input.cosmo_raw, convert_categoricals=False) 
+        df_aff = df.filter(regex='TIME|^POL_|^AFF_',axis=1).dropna(axis=1)
+        pca_aff = PCA(n_components=1)
+        aff = pca_aff.fit_transform(df_aff.groupby('TIME').mean().values)
+        aff -= aff[0]
+        df_aff = pd.DataFrame(aff, columns=['phi'], index=dates)
+        df_aff.to_csv(output.cosmo_phi, index_label='date')
+
+
+
+    

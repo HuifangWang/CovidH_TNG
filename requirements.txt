@@ -1,0 +1,6 @@
+pandas
+pyreadstat
+jupyterlab
+seaborn
+snakemake
+sklearn
