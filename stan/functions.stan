@@ -28,6 +28,15 @@ functions {
         if(is_nan(m[r,c]))
           reject("mat[", r, ",", c, "] is nan!");
   }
+
+  int count_nan_mat(matrix m) {
+    int n = 0;
+    for (c in 1:cols(m))
+      for (r in 1:rows(m))
+        if(is_nan(m[r,c]))
+          n += 1;
+    return n;
+  }
   
   matrix sub_pse(matrix yt) {
     matrix[3,cols(yt)/7] out;
@@ -40,7 +49,7 @@ functions {
     return out;
   }
   
-  matrix run(real gamma, vector Gamma, real noise, matrix dwI_, vector arI) {
+  matrix run(vector gamma, vector Gamma, real noise, matrix dwI_, vector arI) {
     int nt = cols(dwI_) + 1;
     matrix[2, nt - 1] dwI = color_dw(dwI_, arI);
     real dt = 1.0;
@@ -88,17 +97,30 @@ functions {
         for (g in 1:2) {
           k[i][g,1] = Lambda - y_[g,3]*sum(exp(y_[,2]))*y_[g,1] - mu*y_[g,1];
           k[i][g,2] = y_[g,3]*sum(y_[,1])-alpha-mu;
-          k[i][g,3] = -(y_[g,3]-beta0)*(1.0 + gamma*(y_[g,4]-phi0)) - Jb*y_[g,3];
+	  { // generalized g
+	    // VJ "g0=g2=0, g1, g3 and g4 non-zero ...  g1=g3*Beta0, and g4=-gamma."
+	    // SP "so g4>0  g2<0 g0 could be both signs, g3<0  and g1<0"
+	    // gamma[] here is std_normal, we xfm here:
+	    real beta_dev = y_[g,3] - beta0;
+	    real phi_dev = y_[g,4] - phi0;
+	    real g0 = gamma[1];
+	    real g1 = gamma[2]*Jb;
+	    real g2 = gamma[3]*phi_dev;
+	    real g3 = gamma[4]*Jb*beta_dev;
+	    real g4 = gamma[5]*phi_dev*beta_dev;
+	    k[i][g,3] = -beta_dev + g0 + g1 + g2 + g3 + g4;
+	  }
+          // k[i][g,3] = -(y_[g,3]-beta0)*(1.0 + gamma*(y_[g,4]-phi0)) - Jb*y_[g,3];
           k[i][g,4] = ((-(y_[g,4]-(phi0-h*Jb)))-c*fu(Jb, y_[g,5]))/tau;
           k[i][g,5] = 1/sigma*(- Gamma[g]*(y_[g,3]-beta0)+u0*(Jb>0));
         }
         // print("t ", t, " k i ", i, k[i]);
-        reject_nan_mat(k[i]);
+        // reject_nan_mat(k[i]);
       }
       // print("y0 ", y);
       y += (dt/6)*(k[1] + 2*k[2] + 2*k[3] + k[4]); // rk4
       // print("y1 ", y);
-      reject_nan_mat(y);
+      // reject_nan_mat(y);
       y[,2] += sqrt_dt * noise * dwI[,t-1]; // noise on log(I)
       // print("y2 ", y);
       y[,5] *= u_mul; // update u on Jb change
@@ -107,10 +129,62 @@ functions {
     }
     return yt;
   }
-
+  
   // observe I as sum of under reported infections
   vector obs_I(matrix yt, real ur) {
     row_vector[cols(yt)] sum_I = exp(yt[3,]) + exp(yt[4,]);
     return sum_I'/ur;
+  }
+
+  vector normal_vec_rng(int n) {
+    vector[n] out;
+    for (i in 1:n)
+      out[i] = normal_rng(0, 1);
+    return out;
+  }
+
+  vector normal_pos_vec_rng(int n) {
+    vector[n] out = normal_vec_rng(n);
+    for (i in 1:n)
+      out[i] = fabs(out[i]);
+    return out;
+  }
+
+  vector gamma_xfm(vector gz) {
+    // SP "so g4>0  g2<0 g0 could be both signs, g3<0  and g1<0"
+    // return [g0, g1, g2, g3, g4]
+    vector[4] eg = exp(gz[2:5]) * 0.1;
+    eg[1:3] *= -1;
+    return append_row([gz[1]*0.1]', eg);
+  }
+
+  vector Gamma_xfm(vector Gz) {
+    return [0.1, 0.5]' .* exp(Gz);
+  }
+
+  // cf reduce_sum
+  real sbc_lp_part(int[] rs, int r0, int r1, vector[] gammah_z, vector[] Gammah_z, matrix[] dwIh, vector[] arIh, int no, real noise, vector[] soI, matrix[] pse, real ur, real ur_sd, real pseh_sd) {
+    real lp = 0;
+    for (r in r0:r1) {
+      if (rs[r] == -1) // nans in yt
+	continue;
+      // ex transformed parameters
+      vector[5] gammah = gamma_xfm(gammah_z[r]);
+      vector[2] Gammah = Gamma_xfm(Gammah_z[r]);
+      matrix[10,no] yth = run(gammah, Gammah, noise, dwIh[r], arIh[r]);
+      matrix[3,no/7] pseh = sub_pse(yth);
+      row_vector[no] soIh = exp(yth[3,]) + exp(yth[4,]);
+      vector[no] urh = soIh' ./ soI[r][1:no];
+      // print("gammah", gammah);
+      reject_nan_mat([urh']);
+      // ex model
+      lp += normal_lpdf(gammah_z[r]				| 0, 1);
+      lp += normal_lpdf(Gammah_z[r]				| 0, 1);
+      lp += normal_lpdf(to_vector(dwIh[r])			| 0, 1);
+      lp += normal_lpdf(to_vector(arIh[r])			| 0, 0.1);
+      lp += normal_lpdf(to_vector(urh)				| ur, ur_sd);
+      lp += normal_lpdf(to_vector(pse[r][,1:cols(pseh)])	| to_vector(pseh), pseh_sd);
+    }
+    return lp;
   }
 }

@@ -7,6 +7,7 @@ import os
 import re
 import threading
 import numpy as np
+import tempfile
 
 
 def _rdump_array(key, val):
@@ -179,11 +180,21 @@ def parse_summary_csv(fname):
 def compile_model(cs, name):
     if os.path.exists(f'{name}.hpp') and os.path.getmtime(f'{name}.hpp') > os.path.getmtime(f'{name}.stan'):
         return
-    os.system(f"{cs}/bin/stanc --include_paths=$PWD --o {name}.hpp {name}.stan")
-    os.system(f"make -C {cs} $PWD/{name}")
+    assert os.system(f"{cs}/bin/stanc --include_paths=$PWD --o {name}.hpp {name}.stan")==0
+    assert os.system(f"make -C {cs} $PWD/{name}")==0
     
 
 def diagnose_csvs(cs, *csvs):
     spcsvs = ' '.join(csvs)
     os.system(f"{cs}/bin/diagnose {spcsvs}")
+    
+
+def run(name, data=None, sampler_args=''):
+    with tempfile.TemporaryDirectory() as td:
+        rdump(f'{td}/data', data or {})
+        assert os.system(f'./{name} sample {sampler_args} '
+                         f'data file={td}/data output file={td}/samples')==0
+        diagnose_csvs(cs, f'{td}/samples')
+        csv = parse_csv(f'{td}/samples')
+    return csv
     

@@ -1,0 +1,7 @@
+*.R
+*.csv
+*.d
+*.hpp
+*.o
+*~
+__pycache__

@@ -23,13 +23,14 @@ transformed data {
 }
 
 parameters {
-  real<lower=0> gammah;
+  vector[5] gammah_z;
   vector<lower=0>[2] Gammah;
   matrix[2, no - 1] dwIh;
   vector[arp] arIh;
 }
 
 transformed parameters {
+  vector[5] gammah = gamma_xfm(gammah_z);
   matrix[10, no] yth = run(gammah, Gammah, noiseh, dwIh, arIh);
   matrix[3,no/7] pseh = sub_pse(yth);
   row_vector[no] soIh = exp(yth[3,]) + exp(yth[4,]);
@@ -37,7 +38,7 @@ transformed parameters {
 }
 
 model {
-  gammah ~ normal(gamma_mu, gamma_sd) T[0,];
+  gammah_z ~ std_normal();
   Gammah[1] ~ normal(Gamma_mu[1], Gamma_sd[1]) T[0,];
   Gammah[2] ~ normal(Gamma_mu[2], Gamma_sd[2]) T[0,];
   to_vector(dwIh) ~ std_normal();
