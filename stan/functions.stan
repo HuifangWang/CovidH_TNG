@@ -49,7 +49,7 @@ functions {
     return out;
   }
   
-  matrix run(vector gamma, vector Gamma, real noise, matrix dwI_, vector arI) {
+  matrix run(vector gamma, vector Gamma, real noise, matrix dwI_, vector arI, vector ic) {
     int nt = cols(dwI_) + 1;
     matrix[2, nt - 1] dwI = color_dw(dwI_, arI);
     real dt = 1.0;
@@ -67,11 +67,15 @@ functions {
     real h = 0.1;
     real tau = 1.0;
     real c = 1.0;
-    real I0 = 0.0001 / 2;
+    // initial conditions
+    real I0 = ic[1] / 2;
     real S0 = (1.0/2) - I0;
-    matrix[2, 5] y = to_matrix({S0, S0, log(I0), log(I0), 0.3, 0.3, 1,  1, 0.01, 0.01}, 2, 5); // TODO initial conditions
+    matrix [2,5] y;
+    for (g in 1:2) y[g,] = append_col([S0,log(I0)], ic[2:4]');
+    // rk4 workspace
     matrix[2, 5] k[4];
     matrix[2, 5] y_;
+    // solution output
     matrix[10, nt] yt;
     yt[,1] = to_vector(y);
     for (t in 2:nt) {
@@ -108,6 +112,7 @@ functions {
 	    real g2 = gamma[3]*phi_dev;
 	    real g3 = gamma[4]*Jb*beta_dev;
 	    real g4 = gamma[5]*phi_dev*beta_dev;
+	    // -beta_dev + gamma*(phidev)*betadev
 	    k[i][g,3] = -beta_dev + g0 + g1 + g2 + g3 + g4;
 	  }
           // k[i][g,3] = -(y_[g,3]-beta0)*(1.0 + gamma*(y_[g,4]-phi0)) - Jb*y_[g,3];
@@ -153,38 +158,17 @@ functions {
   vector gamma_xfm(vector gz) {
     // SP "so g4>0  g2<0 g0 could be both signs, g3<0  and g1<0"
     // return [g0, g1, g2, g3, g4]
-    vector[4] eg = exp(gz[2:5]) * 0.1;
+    // SBC showed g3/g4 non-indentifiable, so they're a bit squeezed
+    vector[4] eg = exp(gz[2:5]) .* [0.1,0.1,0.03,0.03]';
     eg[1:3] *= -1;
     return append_row([gz[1]*0.1]', eg);
   }
 
-  vector Gamma_xfm(vector Gz) {
-    return [0.1, 0.5]' .* exp(Gz);
+  vector ic_xfm(vector ic_z) {
+    return exp(ic_z .* [1,0.5,0.5,0.5]') .* [1e-5, 0.3, 1, 0.01]';
   }
 
-  // cf reduce_sum
-  real sbc_lp_part(int[] rs, int r0, int r1, vector[] gammah_z, vector[] Gammah_z, matrix[] dwIh, vector[] arIh, int no, real noise, vector[] soI, matrix[] pse, real ur, real ur_sd, real pseh_sd) {
-    real lp = 0;
-    for (r in r0:r1) {
-      if (rs[r] == -1) // nans in yt
-	continue;
-      // ex transformed parameters
-      vector[5] gammah = gamma_xfm(gammah_z[r]);
-      vector[2] Gammah = Gamma_xfm(Gammah_z[r]);
-      matrix[10,no] yth = run(gammah, Gammah, noise, dwIh[r], arIh[r]);
-      matrix[3,no/7] pseh = sub_pse(yth);
-      row_vector[no] soIh = exp(yth[3,]) + exp(yth[4,]);
-      vector[no] urh = soIh' ./ soI[r][1:no];
-      // print("gammah", gammah);
-      reject_nan_mat([urh']);
-      // ex model
-      lp += normal_lpdf(gammah_z[r]				| 0, 1);
-      lp += normal_lpdf(Gammah_z[r]				| 0, 1);
-      lp += normal_lpdf(to_vector(dwIh[r])			| 0, 1);
-      lp += normal_lpdf(to_vector(arIh[r])			| 0, 0.1);
-      lp += normal_lpdf(to_vector(urh)				| ur, ur_sd);
-      lp += normal_lpdf(to_vector(pse[r][,1:cols(pseh)])	| to_vector(pseh), pseh_sd);
-    }
-    return lp;
+  vector Gamma_xfm(vector Gz) {
+    return [0.1, 0.5]' .* exp(Gz);
   }
 }

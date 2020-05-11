@@ -33,9 +33,9 @@ for k, v in zsa.items():
 
 globals().update(zsa)
 
-pl.figure(figsize=(10,10))
+pl.figure(figsize=(10,6))
 for i, (s_, z_) in enumerate(zip(s_g.T, z_g.T)):
-    pl.subplot(3,3,i+1)
+    pl.subplot(4,5,i+1)
     pl.plot(s_, z_, 'k.')
     pl.xlabel('Shrinkage')
     pl.ylabel('Posterior z-score')
@@ -43,14 +43,23 @@ for i, (s_, z_) in enumerate(zip(s_g.T, z_g.T)):
     pl.ylim([0, 2])
     pl.title('$g_%d$' % (i,))
 for i, (s_, z_) in enumerate(zip(s_G.T, z_G.T)):
-    pl.subplot(3,3,i+7)
+    pl.subplot(4,5,i+6)
     pl.plot(s_, z_, 'k.')
     pl.xlabel('Shrinkage')
     pl.ylabel('Posterior z-score')
     pl.xlim([-0.2, 1.2])
     pl.ylim([0, 2])
     pl.title('$\Gamma_%d$' % (i,))
+for i, (s_, z_) in enumerate(zip(s_ic.T, z_ic.T)):
+    pl.subplot(4,5,i+11)
+    pl.plot(s_, z_, 'k.')
+    pl.xlabel('Shrinkage')
+    pl.ylabel('Posterior z-score')
+    pl.xlim([-0.2, 1.2])
+    pl.ylim([0, 2])
+    pl.title(['$I(t=0)$', r'$\beta(t=0)$', r'$\phi(t=0)$', '$u(t=0)$'][i])
 #pl.subplot(3,3,8); pl.hist(z_pse); pl.title('Posterior predictive z-score PSE')
-pl.subplot(3,3,9); pl.hist(z_soI); pl.title('Posterior predictive z-score sum(I)')
+pl.subplot(4,5,16); pl.hist(z_soI); pl.title('Posterior predictive z-score sum(I)'); 
 pl.tight_layout()
+pl.savefig('sbc-fixed-sensitivity.png')
 pl.show()

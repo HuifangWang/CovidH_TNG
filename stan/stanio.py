@@ -189,7 +189,7 @@ def diagnose_csvs(cs, *csvs):
     os.system(f"{cs}/bin/diagnose {spcsvs}")
     
 
-def run(name, data=None, sampler_args=''):
+def run(cs, name, data=None, sampler_args=''):
     with tempfile.TemporaryDirectory() as td:
         rdump(f'{td}/data', data or {})
         assert os.system(f'./{name} sample {sampler_args} '

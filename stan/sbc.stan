@@ -15,6 +15,7 @@ transformed data {
   real ur = 2.0;
   real ur_sd = 0.3;
   real pseh_sd = 0.3;
+  vector[4] ic;
   vector[5] gamma;
   vector[2] Gamma;
   matrix[2,nt-1] dwI;
@@ -29,9 +30,10 @@ transformed data {
       draws += 1;
       gamma = gamma_xfm(normal_vec_rng(5));
       Gamma = Gamma_xfm(normal_vec_rng(2));
+      ic = ic_xfm(normal_vec_rng(4));
       dwI = mat_rng(2, nt - 1);
       arI = normal_vec_rng(5)/10;
-      yt = run(gamma, Gamma, noise, dwI, arI);
+      yt = run(gamma, Gamma, noise, dwI, arI, ic);
       pse = sub_pse(yt);
       soI = obs_I(yt, ur);
       if (count_nan_mat(yt) == 0)
@@ -46,6 +48,7 @@ transformed data {
 parameters {
   vector[5] gammah_z;
   vector[2] Gammah_z;
+  vector[4] ic_z;
   matrix[2, no - 1] dwIh;
   vector[5] arIh;
 }
@@ -53,7 +56,8 @@ parameters {
 transformed parameters {
   vector[5] gammah = gamma_xfm(gammah_z);
   vector[2] Gammah = Gamma_xfm(Gammah_z);
-  matrix[10,no] yth = run(gammah, Gammah, noise, dwIh, arIh);
+  vector[4] ich = ic_xfm(ic_z);
+  matrix[10,no] yth = run(gammah, Gammah, noise, dwIh, arIh, ich);
   matrix[3,no_7] pseh = sub_pse(yth);
   row_vector[no] soIh = exp(yth[3,]) + exp(yth[4,]);
   vector[no] urh = soIh' ./ soI[1:no];
@@ -63,6 +67,7 @@ transformed parameters {
 model {
   gammah_z ~ std_normal();
   Gammah_z ~ std_normal();
+  ic_z ~ std_normal();
   to_vector(dwIh) ~ std_normal();
   to_vector(arIh) ~ normal(0, 0.1);
   to_vector(pse[,1:cols(pseh)]) ~ normal(to_vector(pseh), pseh_sd);
@@ -73,6 +78,7 @@ generated quantities {
   // recover true values
   vector[5] gamma_ = gamma;
   vector[2] Gamma_ = Gamma;
+  vector[4] ic_ = ic;
   matrix[3,nt_7] pse_ = pse;
   vector[nt] soI_ = soI;
   // log_lik for waic/psis
@@ -93,7 +99,7 @@ generated quantities {
     while (have_nan==1) {
       ytp = run(gammah, Gammah, noise,
 	        append_col(dwIh, mat_rng(2, nt - no)),
-	        normal_vec_rng(5)/10);
+	        arIh, ich);
       psep = sub_pse(ytp);
       for (i in 1:3)
 	for (t in 1:nt_7)
