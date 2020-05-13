@@ -1,0 +1,248 @@
+import matplotlib
+matplotlib.use('Agg')
+import numpy as np
+import itertools
+import datetime
+import pandas as pd
+import seaborn as sns
+import matplotlib.pylab as plt
+sns.set_style("whitegrid", {'grid.linestyle': '--'})
+
+from src import data,viz
+
+fig_root = os.path.join(
+            os.path.dirname(
+                data.data_root
+            ),
+            'reports', 'data_summary'
+        )
+
+
+processed_root = os.path.join(data.data_root, 'processed')
+
+start_date=datetime.date(2020, 2, 15)
+
+countries = ['france', 'germany']
+
+cosmo_dates = [
+    'Mar 04',
+    'Mar 11',
+    'Mar 18',
+    'Mar 25',
+    'Apr 01',
+    'Apr 08',
+    'Apr 15',
+    'Apr 22',
+    'Apr 29',
+]
+
+rule all:
+    input:
+        os.path.join( fig_root, 'datahub_cases.png'),
+        os.path.join( fig_root, 'ic_model.png'),
+        os.path.join( fig_root, 'mobility_reports.png'),
+        os.path.join( fig_root, 'mobility_reports_avg.png'),
+        os.path.join( fig_root, 'cosmo_aff.png'),
+        os.path.join( fig_root, 'cosmo_phi.png'),
+
+rule datahub_cases:
+    output:
+        fig=os.path.join( fig_root, 'datahub_cases.png'),
+    run:
+        nrows=len(countries)
+        fig, axs = plt.subplots(nrows=nrows, figsize=(6.4,2.4*nrows), sharex=True)
+
+
+        for ax,country in zip(axs, countries):
+            df = data.load_covid19(country)
+            sns.lineplot(data=df,ax=ax)
+            viz.format_xaxis_dates(ax)
+            ax.xaxis.set_tick_params(rotation=45)
+            ax.set_title(f"Covid-19 {country}")
+            ax.set_xlim(left=start_date)
+
+        fig.savefig(output.fig)
+
+rule ic_model:
+    output:
+        fig=os.path.join( fig_root, 'ic_model.png'),
+    run:
+        nrows = 5
+        fig, axs = plt.subplots(nrows=nrows, ncols=2, figsize=(10,nrows*2.4), sharex=True)
+
+        for i, country in enumerate(['germany', 'france']):
+            df = data.load_imperial_college_results(country)
+            ax = axs[0,i]
+            sns.lineplot(
+                data=df[ [ 'reported_cases_cumulative', 'predicted_infections_mean_cumulative' ] ],
+                ax=ax
+            )
+            ax.fill_between(
+                df.index.values,
+                df.predicted_infections_lower_CI_95_cumulative,
+                df.predicted_infections_higher_CI_95_cumulative,
+                color=sns.color_palette()[1],
+                alpha=0.2
+            )
+            if i==0:
+                ax.set_ylabel(f'Cumulative number of cases')
+            ax.set_title(country)
+            ax.legend(labels=['reported','predicted' ])
+            ax.set_xlim(left=start_date)
+
+            ax = axs[1,i]
+            sns.lineplot(
+                data=df[ [ 'reported_cases', 'predicted_infections_mean', ] ],
+                ax=ax
+            )
+            ax.fill_between(
+                df.index.values,
+                df.predicted_infections_lower_CI_95,
+                df.predicted_infections_higher_CI_95,
+                color=sns.color_palette()[1],
+                alpha=0.2
+            )
+            if i==0:
+                ax.set_ylabel(f'Daily number of cases')
+            ax.legend(labels=['reported','predicted' ])
+            ax.set_xlim(left=start_date)
+
+            ax=axs[2,i]
+            sns.lineplot(
+                data=df[ [ 'reported_deaths_cumulative', 'estimated_deaths_mean_cumulative', ] ],
+                ax=ax
+            )
+            ax.fill_between(
+                df.index.values,
+                df.estimated_deaths_lower_CI_95_cumulative,
+                df.estimated_deaths_higher_CI_95_cumulative,
+                color=sns.color_palette()[1],
+                alpha=0.2
+            )
+            if i==0:
+                ax.set_ylabel(f'Cumulative number of deaths')
+            ax.legend(labels=['reported','predicted' ])
+            ax.set_xlim(left=start_date)
+
+            ax=axs[3,i]
+            sns.lineplot(
+                data=df[ [ 'reported_deaths', 'estimated_deaths_mean', ] ],
+                ax=ax
+            )
+            ax.fill_between(
+                df.index.values,
+                df.estimated_deaths_lower_CI_95,
+                df.estimated_deaths_higher_CI_95,
+                color=sns.color_palette()[1],
+                alpha=0.2
+            )
+            if i==0:
+                ax.set_ylabel(f'Daily number of deaths')
+            ax.legend(labels=['reported','predicted' ])
+            ax.xaxis.set_tick_params(rotation=45)
+            ax.set_xlim(left=start_date)
+
+            ax=axs[4,i]
+            sns.lineplot(
+                data=df['mean_time_varying_reproduction_number_R(t)'],
+                ax=ax
+            )
+            ax.fill_between(
+                df.index.values,
+                df['time_varying_reproduction_number_R(t)_lower_CI_95'],
+                df['time_varying_reproduction_number_R(t)_higher_CI_95'],
+                color=sns.color_palette()[1],
+                alpha=0.2
+            )
+            if i==0:
+                ax.set_ylabel(f'R(t)')
+            viz.format_xaxis_dates(ax)
+            ax.xaxis.set_tick_params(rotation=45)
+            ax.set_xlim(left=start_date)
+
+        fig.savefig(output.fig)
+
+rule mobility_reports:
+    output:
+        fig=os.path.join( fig_root, 'mobility_reports.png')
+    run:
+        providers = ['apple', 'google']
+
+        providers_countries = list(itertools.product(countries,providers))
+        nrows=len(providers_countries)
+        fig, axs = plt.subplots(nrows=nrows, figsize=(10,4*nrows), sharex=True)
+
+
+        for ax,(country,provider) in zip(axs,providers_countries):
+            df = data.load_mobility(country, provider)
+            if provider == 'google':
+                df = df.rename(
+                        axis='columns', 
+                        mapper={
+                            'retail_and_recreation_percent_change_from_baseline':'retail_and_recreation',
+                            'grocery_and_pharmacy_percent_change_from_baseline':'grocery_and_pharmacy',
+                            'parks_percent_change_from_baseline':'parks',
+                            'transit_stations_percent_change_from_baseline':'transit_stations',
+                            'workplaces_percent_change_from_baseline':'workplaces',
+                            'residential_percent_change_from_baseline':'residential'}
+                )
+            sns.lineplot(data=df, ax=ax)
+            ax.set_title(f"{provider} mobility reports: {country}")
+            ax.set_ylabel("% change from baseline")
+            viz.format_xaxis_dates(ax)
+            ax.set_xlim(left=start_date)
+        fig.savefig(output.fig, bbox_inches='tight')
+
+rule mobility_reports_avg:
+    output:
+        fig=os.path.join( fig_root, 'mobility_reports_avg.png')
+    run:
+        providers = ['apple', 'google']
+
+        providers_countries = list(itertools.product(countries,providers))
+        nrows=len(providers_countries)
+        fig, axs = plt.subplots(nrows=nrows, figsize=(6.4,2.4*nrows), sharex=True)
+
+        for ax,(country,provider) in zip(axs,providers_countries):
+            df = data.load_mobility(country, provider)
+            sns.lineplot(data=df.resample('W').mean().mean(axis=1), ax=ax)
+            ax.set_title(f"{provider} mobility reports (average): {country}")
+            ax.set_ylabel("% change from baseline")
+            viz.format_xaxis_dates(ax)
+            ax.set_xlim(left=start_date)
+            ax.xaxis.set_tick_params(rotation=45)
+
+        fig.savefig(output.fig, bbox_inches='tight')
+
+rule cosmo_aff:
+    output:
+        fig=os.path.join( fig_root, 'cosmo_aff.png')
+    run:
+        df = pd.read_spss(f"{data.data_root}/external/COSMO/INSERM.sav", convert_categoricals=False)
+        df_aff = df.filter(regex='TIME|^AFF_',axis=1).dropna(axis=1)
+
+        sns.catplot(
+            data=df_aff.melt('TIME', var_name='variable', value_name='value'),
+            x='TIME', 
+            y='value',
+            hue='variable',
+            kind='point',
+            capsize=0.2,
+            #height=4.8,
+            aspect=15/9
+        ).set_xticklabels(
+                cosmo_dates, rotation=45
+        ).savefig(output.fig, bbox_inches='tight')
+
+rule cosmo_phi:
+    output:
+        fig=os.path.join( fig_root, 'cosmo_phi.png')
+    run:
+        fig, ax = plt.subplots(figsize=(6.4,3))
+        df = data.load_cosmo_phi()
+        sns.lineplot(data=df, ax=ax)
+        viz.format_xaxis_dates(ax)
+        ax.xaxis.set_tick_params(rotation=45)
+
+        fig.savefig(output.fig, bbox_inches='tight')
+

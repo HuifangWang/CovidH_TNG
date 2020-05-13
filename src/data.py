@@ -51,6 +51,13 @@ def load_imperial_college_results(country='france'):
             parse_dates=['date']
     ).set_index('date')
 
+def load_cosmo_phi():
+    return pd.read_csv(
+            os.path.join(
+                data_root, 'processed', f'germany_cosmo_phi.csv'),
+            parse_dates=['date']
+    ).set_index('date')
+
 def date_index_to_days(df, day0):
     """
     Recalculates index of a pandas DataFrame to days from given day0.
