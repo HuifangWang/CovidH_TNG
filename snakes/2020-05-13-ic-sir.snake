@@ -1,0 +1,36 @@
+from src import data
+import pandas as pd
+
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'france_imperial_college_sir.csv'),
+        os.path.join(data.data_root, 'processed', 'germany_imperial_college_sir.csv'),
+
+
+rule imperial_college:
+    input:
+        ic_results = os.path.join(
+            data.data_root, 'external', 'imperial_college_covid_estimates', 'results.csv'
+        )
+    output:
+        ic_results = os.path.join(
+                data.data_root, 'processed', '{country}_imperial_college_sir.csv'
+        )
+    run:
+        df = pd.read_csv(
+            os.path.join(data.data_root, 'external', 'imperial_college_covid_estimates', 'results.csv'),
+            parse_dates=['time']
+        ).set_index(
+            ['time']
+        ).drop(
+            columns=['Unnamed: 0']
+        ).rename(
+            mapper={
+                'predicted_infections_higher_CI_95_cumulative.1':'predicted_infections_higher_CI_95'
+            },
+            axis='columns'
+        )
+        df.loc[
+            df.country == data.ic_country_codes[wildcards.country]
+        ].to_csv(output.ic_results, index_label='date')
