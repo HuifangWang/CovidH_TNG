@@ -75,3 +75,16 @@ Two groups of variables were identified as having enough temporal variance to in
 A representative time-series was extracted as a first PCA component from the Affect variables (without AFF_HYPE, which follows slightly different trend; explained variance by the first component: 91%), and is available in the `germany_cosmo_phi.csv` file.
 
 ![mobility reports](data_summary/cosmo_phi.png)
+
+## Robert Koch Institute nowcasting
+
+The [RKI](https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Projekte_RKI/Nowcasting.html) is estimating the true number of daily infections as well as the reproduction number R. 
+
+![image-20200517010401269](data_summary/image-20200517010401269.png)
+
+Data is available in the `germany_rki_nowcasting.csv` file with point estimates and 95 CI on:
+
+* estimated new cases (smoothed, not smoothed)
+* estimated reproduction number (smoothed, not smoothed)
+
+![rki nowcasting](data_summary/rki_nowcasting.png)
