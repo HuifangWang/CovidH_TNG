@@ -1,7 +1,4 @@
-// variant in which only (I-S) is stochastically forced with colored noise
-// This implements the new equations & log(I) 05/05/2020
-
-// TODO add genaralized g term
+// these functions aren't used anymore, see model.stan for final version
 
 functions {
   matrix mat_rng(int m, int n) {
