@@ -1,0 +1,42 @@
+from src import data
+import pandas as pd
+
+cols_en = [
+    'date_of_disease_onset',
+    'number_of_new_cases_point_estimate_without_smoothing',
+    'number_of_new_cases_lower_CI_95_without_smoothing',
+    'number_of_new_cases_upper_CI_95_without_smoothing',
+    'number_of_new_cases_point_estimate',
+    'number_of_new_cases_lower_CI_95',
+    'number_of_new_cases_upper_CI_95',
+    'reproduction_number_R_point_estimate',
+    'reproduction_number_R_lower_CI_95',
+    'reproduction_number_R_upper_CI_95',
+    'R_7_day_point_estimate',
+    'R_7_day_lower_CI_95',
+    'R_7_day_upper_CI_95',
+]
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'germany_rki_nowcasting.csv'),
+
+rule germany_rki:
+    input:
+        rki_raw = os.path.join(
+                data.data_root, 'external', 'RKI', 'Nowcasting_Zahlen.csv'
+        )
+    output:
+        rki = os.path.join(data.data_root, 'processed', 'germany_rki_nowcasting.csv'),
+    run:
+        df = pd.read_csv(
+            os.path.join(
+                data.data_root, 'external', 'RKI', 'Nowcasting_Zahlen.csv'
+            ),
+            parse_dates=[0]
+        )
+        df.rename(
+                columns=dict(zip(df.columns,cols_en))
+        ).set_index(
+                'date_of_disease_onset'
+        ).to_csv(output.rki, index_label='date_of_disease_onset')

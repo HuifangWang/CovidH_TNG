@@ -58,6 +58,13 @@ def load_cosmo_phi():
             parse_dates=['date']
     ).set_index('date')
 
+def load_rki_nowcasting():
+    return pd.read_csv(
+            os.path.join(
+                data_root, 'processed', 'germany_rki_nowcasting.csv'),
+            parse_dates=['date_of_disease_onset']
+    ).set_index('date_of_disease_onset')
+
 def date_index_to_days(df, day0):
     """
     Recalculates index of a pandas DataFrame to days from given day0.

@@ -1,0 +1,13 @@
+Date of disease onset
+Point estimate of the number of new cases (without smoothing)
+Lower limit of the 95% prediction interval of the number of new cases (without smoothing)
+Upper limit of the 95% prediction interval of the number of new cases (without smoothing)
+Point estimate of the number of new cases
+Lower limit of the 95% prediction interval of the number of new cases
+Upper limit of 95% prediction interval of the number of new cases
+Point estimate of the reproduction number R
+Lower limit of 95% prediction interval of the reproduction number R
+Upper limit of 95% prediction interval of the reproduction number R
+Point estimate of the 7-day R value
+Lower limit of 95% prediction interval of the 7-day R value
+Upper limit of 95% prediction interval of the 7-day R value

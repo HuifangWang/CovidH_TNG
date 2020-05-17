@@ -44,6 +44,7 @@ rule all:
         os.path.join( fig_root, 'mobility_reports_avg.png'),
         os.path.join( fig_root, 'cosmo_aff.png'),
         os.path.join( fig_root, 'cosmo_phi.png'),
+        os.path.join( fig_root, 'rki_nowcasting.png'),
 
 rule datahub_cases:
     output:
@@ -246,3 +247,82 @@ rule cosmo_phi:
 
         fig.savefig(output.fig, bbox_inches='tight')
 
+rule rki_nowcasting:
+    output:
+        fig= os.path.join( fig_root, 'rki_nowcasting.png'),
+    run:
+        fig, axs = plt.subplots(nrows=2, sharex=True)
+        df = data.load_rki_nowcasting()
+        
+        ax=axs.flatten()[0]
+        sns.lineplot(
+            data=df[
+                [
+                    'number_of_new_cases_point_estimate',
+                    'number_of_new_cases_point_estimate_without_smoothing'
+                ]
+            ].rename(
+                columns={
+                    'number_of_new_cases_point_estimate':'new_cases',
+                    'number_of_new_cases_point_estimate_without_smoothing':'new_cases_without_smoothing'
+                }
+            ),
+            ax=ax
+        )
+
+        ax.fill_between(
+            df.index.values,
+            df.number_of_new_cases_lower_CI_95, 
+            df.number_of_new_cases_upper_CI_95,
+            color=sns.color_palette()[0],
+            alpha=0.2
+        )
+
+        ax.fill_between(
+            df.index.values,
+            df.number_of_new_cases_lower_CI_95_without_smoothing, 
+            df.number_of_new_cases_upper_CI_95_without_smoothing,
+            color=sns.color_palette()[1],
+            alpha=0.2
+        )
+
+
+
+        viz.format_xaxis_dates(ax)
+        ax.xaxis.set_tick_params(rotation=45)
+
+        ax = axs.flatten()[1]
+        sns.lineplot(
+            data=df[
+                ['reproduction_number_R_point_estimate','R_7_day_point_estimate']
+            ].rename(
+                columns={
+                    'reproduction_number_R_point_estimate': 'reproduction_number_R' ,
+                    'R_7_day_point_estimate': 'R_7_day'
+                }
+            ),
+            ax=ax
+        )
+
+        ax.fill_between(
+            df.index.values,
+            df.reproduction_number_R_lower_CI_95, 
+            df.reproduction_number_R_upper_CI_95,
+            color=sns.color_palette()[0],
+            alpha=0.2
+        )
+
+        ax.fill_between(
+            df.index.values,
+            df.R_7_day_lower_CI_95,
+            df.R_7_day_upper_CI_95,
+            color=sns.color_palette()[1],
+            alpha=0.2
+        )
+
+
+
+        viz.format_xaxis_dates(ax)
+        ax.xaxis.set_tick_params(rotation=45)
+
+        fig.savefig(output.fig, bbox_inches='tight')
