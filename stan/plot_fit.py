@@ -44,8 +44,12 @@ pl.plot(de_idx, np.log(de_imu), 'go')
 pl.plot(de_idx, np.log(de_isd), 'gx')
 pl.plot(de_mobi, de_mobp, 'bo')
 pl.plot(de_iphi, de_vphi, 'ro')
-pl.savefig('german-data.png')
-# pl.show()
+pl.title("Data for Germany")
+pl.xlabel("Days after Feb 15th")
+pl.legend("$\mu_{R0(t)}$ $\sigma^2_{R0(t)}$ $\log{\mu_{I(t)}}$ $\log{\sigma^2_{I(t)}}$ $Mobility$ $Cosmo\phi$".split(' '))
+pl.grid(1)
+pl.savefig('german-data.png', dpi=300)
+pl.show()
 
 
 import stanio
@@ -59,6 +63,9 @@ data = {
     'rid': de_idx + 1,
     'rmu': de_rmu,
     'rsd': de_rsd,
+    # only loosely constrain I with ICL estimates
+    'ni': len(de_idx),
+    'iid': de_idx + 1,
     'imu': de_imu,
     'isd': de_isd,
     'nm': len(de_mobi),
@@ -69,6 +76,11 @@ data = {
     'phi': de_vphi,
     'I0': 1e-6,
     'eps': 10.0,
+    # model comparision params
+    'mc_use_pse': 1,
+    'mc_use_groups': 1,
+    'mc_Gamma_cov': 3.0,
+    'mc_ind_Gamma': 0,
     }
 init = {
     'gamma': 0.1,
@@ -80,16 +92,66 @@ init = {
 stanio.rdump('model.R', data)
 stanio.rdump('init.R', init)
 
-stanio.compile_model(cs,'model')
-os.remove('fit.csv')
-assert 0==os.system('./model sample algorithm=hmc engine=nuts max_depth=15 save_warmup=1 init=init.R data file=model.R output file=fit.csv')
-os.system('../../cmdstan-2.22.1/bin/diagnose fit.csv')
-csv = stanio.parse_csv('fit.csv')
 
-for k, v in csv.items():
-    print(k, v.shape)
+# model comparison cases
+defaults = {
+    'mc_use_pse': 1,
+    'mc_use_groups': 1,
+    'mc_Gamma_cov': 3.0,
+    'mc_ind_Gamma': 0,
+}
+# values deviate from defaults
+cases = {
+    'no_pse': {'mc_use_pse': 0, 'mc_use_groups': 0},
+    'no_group': {'mc_use_groups': 0},
+    'eq_Gamma': {'mc_Gamma_cov': 1.0},
+    'cov_Gamma': {'mc_Gamma_cov': 3.0},
+    'ind_Gamma': {'mc_ind_Gamma': 1}
+}
+# concrete cases hold all values
+ccases = {key: dict(**defaults) for key in cases.keys()}
+for key, val in cases.items():
+    print(key, val)
+    ccases[key].update(val)
 
+# comment once run to avoid accidnetally overwriting files
+#fits = {}
+# for key, val in ccases.items():
+#     data.update(val)
+#     stanio.rdump(f'data-{key}.R', data)
+#     assert 0==os.system(f'./model random seed=1337 sample save_warmup=1 algorithm=hmc engine=nuts max_depth=15 init=init.R data file=data-{key}.R output file=fit.csv'), f'{key} failed!'
+#     os.system(f'cp fit.csv fit-{key}.csv')
+#     os.system(f'../../cmdstan-2.22.1/bin/diagnose fit-{key}.csv')
+#     fits[key] = stanio.parse_csv(f'fit-{key}.csv')
+
+
+### model comparison
+# with all models run we need to evaluate log_lik just for I(t) and r
+#  rmu ~ normal(rh[rid],rsd);
+#  imu ~ normal(ih[iid],isd);
 from scipy import stats
+def log_lik_IR(fit):
+    rh = fit['rh'][-1000:, data['rid']]
+    ih = fit['ih'][-1000:, data['iid']]
+    llr = np.log(stats.norm.pdf(data['rmu'], rh, data['rsd']))
+    lli = np.log(stats.norm.pdf(data['imu'], rh, data['isd']))
+    return np.c_[llr, lli]
+
+def loo_ir(fit):
+    from psis import psisloo
+    loo, loos, ks = psisloo(log_lik_IR(fit))
+    return loo
+loo_no_pse = loo_ir(fits['no_pse'])
+for key, val in fits.items():
+    if key == 'no_pse':
+        continue
+    l=loo_ir(val)
+    print(key, np.exp(l - loo_no_pse))
+
+loo, loos, ks = psisloo(log_lik_IR(fits['no_group']))
+
+# plotting code
+csv = fits['cov_Gamma']
 pars = np.c_[csv['lp__'], csv['gamma'],csv['Gamma'], csv['c'], csv['alpha'], csv['J']][-1000:].T#, csv['mpr_a'], csv['mpr_b'], csv['phi_a'], csv['phi_b']].T
 names = (r'$\log{p(\theta|y)}$ $\gamma$ $\Gamma_1$ $\Gamma_2$ $c_1$ $c_2$ $\alpha$ $J_b$').split(' ')
 ranges = [(_.min(), _.max()) for _ in pars]
@@ -145,6 +207,7 @@ for i, k in enumerate('ih rmu mpr phi'.split(' ')):
         pl.plot(data['rid'],np.log(data['imu']),'r')
         pl.plot(data['rid'],np.log(data['imu']-data['isd']),'r--')
         pl.plot(data['rid'],np.log(data['imu']+data['isd']),'r--')
+        pl.title('Predictive distributions for Germany')
     elif i==1:
         pl.plot(data['rid'],data['rmu'],'r')
         pl.plot(data['rid'],data['rmu']-data['rsd'],'r--')
@@ -153,8 +216,77 @@ for i, k in enumerate('ih rmu mpr phi'.split(' ')):
         pl.plot(data['mid'],data['mpr'],'r')
     else:
         pl.plot(data['pid'],data['phi'],'r')
-    pl.ylabel('log(I(t)) R0(t) Mobility CosmoPhi'.split(' ')[i])
+    pl.ylabel('log(I(t)) R0(t) Mobility Cosmo$\phi$'.split(' ')[i])
 pl.xlabel('Days after Feb 14th 2020')
 pl.tight_layout()
-pl.savefig('germany-ppc.png')
+pl.savefig('germany-ppc.png', dpi=300)
+pl.show()
+
+
+
+# param sweep duration of second confinement, show CI on peak I(t), to establish minimum duration for maxim I(t)
+# figure showing forecast CI for different interventions
+
+
+# "nice" figure with a few distributions and ppc time series
+fig = pl.figure()
+csv_ = {k:v[-1000:] for k,v in fits['cov_Gamma'].items()}
+# posterior distributions 3x2+4x1
+def php(x,mu,sd):
+    pl.hist(x, 40, alpha=0.5, fc='red', density=True, orientation="horizontal")
+    lo = x.min()# min(x.min(), mu-sd)
+    hi = x.max() #max(x.max(), mu+sd)
+    _ = np.r_[lo:hi:100j]
+    pl.plot(stats.norm.pdf(_, mu, sd), _, 'k', alpha=0.5, linewidth=5)
+    pl.yticks(np.percentile(x,[2.5,50,97.5]))
+    from matplotlib.ticker import FormatStrFormatter
+    pl.gca().yaxis.set_major_formatter(FormatStrFormatter(f'%.{max(2,int(2-np.log10(x.mean())))}f'))
+    pl.xticks([])
+    pl.grid(1)
+fig.set_constrained_layout(True)
+gs = fig.add_gridspec(4,4)
+ax = fig.add_subplot(gs[0,0]); php(csv_['gamma'],0.1,0.1); pl.title(r'$\gamma$')
+ax = fig.add_subplot(gs[0,1]); php(csv_['alpha'],0.1,0.1); pl.title(r'$\alpha$')
+ax = fig.add_subplot(gs[1,0]); php(csv_['Gamma'][:,0],1/3,1/3); pl.title(r'$\Gamma_1$')
+ax = fig.add_subplot(gs[1,1]); php(csv_['Gamma'][:,1],1*3,1*3); pl.title(r'$\Gamma_2$')
+ax = fig.add_subplot(gs[2,0]); php(csv_['c'][:,0],0.5,0.5); pl.title(r'$c_1$')
+ax = fig.add_subplot(gs[2,1]); php(csv_['c'][:,1],5,5); pl.title(r'$c_2$')
+ax = fig.add_subplot(gs[3,0]); php(csv_['mpr_a'],1,1); pl.title(r'$m_{mob}$')
+ax = fig.add_subplot(gs[3,1]); php(csv_['phi_a'],1,1); pl.title(r'$m_{\phi}$')
+# PPC time series
+csv_['pp_ih'] = np.log(stats.norm.rvs(csv['ih'],np.r_[data['isd'],np.ones((210-len(data['isd'])))*data['isd'][-1]][None,:]))
+for i, k in enumerate('ih rmu mpr phi'.split(' ')):
+    #pl.subplot(4, 2, 2*i + 2)
+    ax = fig.add_subplot(gs[i,2:])
+    ppk = f'pp_{k}'
+    #q=np.percentile(csv[ppk],[2.5,10,25,75,90,97.5],axis=0)
+    if 0:
+        pl.plot(q1, 'k--')
+        pl.plot(q2, 'k')
+        pl.plot(q3, 'k--')
+    else:
+        for a,p1,p2 in [(0.1,2.5,97.5), (0.3,25,75)]:
+            q1, q2 = np.percentile(csv_[ppk], [p1,p2], axis=0)
+            pl.fill_between(np.r_[:len(q1)], q1, q2, color='k', alpha=a)
+        # pl.plot(q2, 'k')
+    if i < 3:
+        pl.xticks(pl.xticks()[0],[])
+    pl.grid(1)
+    if i == 0:
+        pl.plot(data['rid'],np.log(data['imu']),'r', alpha=0.5, linewidth=2)
+        #pl.plot(data['rid'],np.log(data['imu']-data['isd']),'r--')
+        #pl.plot(data['rid'],np.log(data['imu']+data['isd']),'r--')
+        #pl.title('Predictive distributions for Germany')
+    elif i==1:
+        pl.plot(data['rid'],data['rmu'],'r', linewidth=2, alpha=0.5)
+        #pl.plot(data['rid'],data['rmu']-data['rsd'],'r--')
+        #pl.plot(data['rid'],data['rmu']+data['rsd'],'r--')
+    elif i==2:
+        pl.plot(data['mid'],data['mpr'],'r', alpha=0.5, linewidth=2)
+    else:
+        pl.plot(data['pid'],data['phi'],'r', alpha=0.5, linewidth=2)
+    pl.ylabel('log(I(t)) R0(t) Mobility Cosmo$\phi$'.split(' ')[i])
+pl.xlabel('Days after Feb 14th 2020')
+pl.tight_layout()
+pl.savefig('germany-inversion.png', dpi=300)
 pl.show()

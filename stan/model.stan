@@ -98,8 +98,10 @@ data {
   int rid[nr];
   real rmu[nr]; // r(t) mean
   real rsd[nr]; // r(t) ci/4
-  real imu[nr]; // i(t) mean
-  real isd[nr]; // i(t) ci/4
+  int ni;
+  int iid[ni];
+  real imu[ni]; // i(t) mean
+  real isd[ni]; // i(t) ci/4
   int nm;
   int mid[nm];
   real mpr[nm]; // mobility proporation reduction
@@ -109,6 +111,11 @@ data {
   real I0;
   int nii; // steps per day to take
   real eps; // loosen priors
+  // model comparison flags
+  int mc_use_pse;
+  int mc_use_groups;
+  real mc_Gamma_cov;
+  int mc_ind_Gamma;
 }
 
 transformed data {
@@ -116,9 +123,9 @@ transformed data {
 }
 
 parameters {
-  real<lower=0> gamma;
-  real<lower=0> Gamma_;
-  vector<lower=0>[2] c;
+  real<lower=0> gamma_;
+  vector<lower=0>[2] Gamma_;
+  vector<lower=0>[2] c_;
   real alpha;
   real J;
   real mpr_a;
@@ -129,8 +136,17 @@ parameters {
 
 transformed parameters {
   vector[4] ic = [I0, rmu[1]*alpha, 1, 0]'; // I0, beta, phi u
-  vector[2] Gamma = [Gamma_, Gamma_]'; // [Gamma_/3, Gamma_*3]';
-  matrix[10, nt] yt = run(nt, gamma, c, Gamma, ic, alpha, J, nii);
+  real gamma = mc_use_pse ? gamma_ : 0.0;
+  vector[2] Gamma;
+  vector[2] c;
+  if (mc_use_groups) {
+    c = c_;
+    Gamma = mc_ind_Gamma ? Gamma_ : [Gamma_[1]/mc_Gamma_cov, Gamma_[1]*mc_Gamma_cov]';
+  } else {
+    Gamma = [Gamma_[1], Gamma_[1]]';
+    c = [c_[1], c_[2]]';
+  }
+  matrix[10, nt] yt = run(nt, gamma*mc_use_pse, c, Gamma, ic, alpha, J, nii);
   row_vector[nt] rh = (yt[5,]+yt[6,]) / alpha * 0.5;
   row_vector[nt] ih = (yt[3,]+yt[4,]) * 86e6;
   matrix[3,nt] pse = yt2pse(yt);
@@ -141,12 +157,12 @@ model {
   J ~ normal(4.0,0.1*eps) T[0,];
   alpha ~ normal(0.1,0.01*eps) T[0,];
   gamma ~ normal(0.1, 0.01*eps) T[0,];
-  Gamma_ ~ normal(1.0,0.1*eps) T[0,];
-  //Gamma[2] ~ normal(3.0,0.1*eps) T[0,];
+  Gamma_[1] ~ normal(1.0,0.1*eps) T[0,];
+  Gamma_[2] ~ normal(1.0,0.1*eps) T[0,];
   c[1] ~ normal(0.5,0.05*eps) T[0,];
   c[2] ~ normal(5.0,0.5*eps) T[0,];
   rmu ~ normal(rh[rid],rsd);
-  imu ~ normal(ih[rid],isd);
+  imu ~ normal(ih[iid],isd);
   // PSE
   mpr_a ~ normal(1, 1);
   mpr_b ~ normal(-1, 1);
