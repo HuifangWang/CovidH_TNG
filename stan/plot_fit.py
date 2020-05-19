@@ -4,6 +4,10 @@ import pandas as pd
 import os
 import datetime
 
+
+## load all the data
+
+
 de_sir_csv = '../data/processed/germany_imperial_college_sir.csv'
 de_sir = pd.read_csv(de_sir_csv, parse_dates=['date'])
 t0 = datetime.datetime(year=2020, month=2, day=15)
@@ -114,21 +118,18 @@ for key, val in cases.items():
     print(key, val)
     ccases[key].update(val)
 
-# comment once run to avoid accidnetally overwriting files
-#fits = {}
-# for key, val in ccases.items():
-#     data.update(val)
-#     stanio.rdump(f'data-{key}.R', data)
-#     assert 0==os.system(f'./model random seed=1337 sample save_warmup=1 algorithm=hmc engine=nuts max_depth=15 init=init.R data file=data-{key}.R output file=fit.csv'), f'{key} failed!'
-#     os.system(f'cp fit.csv fit-{key}.csv')
-#     os.system(f'../../cmdstan-2.22.1/bin/diagnose fit-{key}.csv')
-#     fits[key] = stanio.parse_csv(f'fit-{key}.csv')
+# run all variants of the model
+fits = {}
+for key, val in ccases.items():
+    data.update(val)
+    stanio.rdump(f'data-{key}.R', data)
+    assert 0==os.system(f'./model random seed=1337 sample save_warmup=1 algorithm=hmc engine=nuts max_depth=15 init=init.R data file=data-{key}.R output file=fit.csv'), f'{key} failed!'
+    os.system(f'cp fit.csv fit-{key}.csv')
+    os.system(f'../../cmdstan-2.22.1/bin/diagnose fit-{key}.csv')
+    fits[key] = stanio.parse_csv(f'fit-{key}.csv')
 
 
-### model comparison
-# with all models run we need to evaluate log_lik just for I(t) and r
-#  rmu ~ normal(rh[rid],rsd);
-#  imu ~ normal(ih[iid],isd);
+### model comparison Bayes factors, just printing to command line and included in paper
 from scipy import stats
 def log_lik_IR(fit):
     rh = fit['rh'][-1000:, data['rid']]
@@ -136,7 +137,6 @@ def log_lik_IR(fit):
     llr = np.log(stats.norm.pdf(data['rmu'], rh, data['rsd']))
     lli = np.log(stats.norm.pdf(data['imu'], rh, data['isd']))
     return np.c_[llr, lli]
-
 def loo_ir(fit):
     from psis import psisloo
     loo, loos, ks = psisloo(log_lik_IR(fit))
@@ -148,9 +148,7 @@ for key, val in fits.items():
     l=loo_ir(val)
     print(key, np.exp(l - loo_no_pse))
 
-loo, loos, ks = psisloo(log_lik_IR(fits['no_group']))
-
-# plotting code
+# pairs plots (not in paper)
 csv = fits['cov_Gamma']
 pars = np.c_[csv['lp__'], csv['gamma'],csv['Gamma'], csv['c'], csv['alpha'], csv['J']][-1000:].T#, csv['mpr_a'], csv['mpr_b'], csv['phi_a'], csv['phi_b']].T
 names = (r'$\log{p(\theta|y)}$ $\gamma$ $\Gamma_1$ $\Gamma_2$ $c_1$ $c_2$ $\alpha$ $J_b$').split(' ')
@@ -190,57 +188,23 @@ pl.tight_layout()
 pl.savefig('german-fit-pairs.png')
 pl.show()
 
-# now ppc
-csv['pp_ih'] = np.log(stats.norm.rvs(csv['ih'],np.r_[data['isd'],np.ones((210-len(data['isd'])))*data['isd'][-1]][None,:]))
-pl.figure()
-for i, k in enumerate('ih rmu mpr phi'.split(' ')):
-    pl.subplot(4, 1, i + 1)
-    ppk = f'pp_{k}'
-    q1,q2,q3=np.percentile(csv[ppk],[5,50,95],axis=0)
-    pl.plot(q1, 'k--')
-    pl.plot(q2, 'k')
-    pl.plot(q3, 'k--')
-    if i < 3:
-        pl.xticks(pl.xticks()[0],[])
-    pl.grid(1)
-    if i == 0:
-        pl.plot(data['rid'],np.log(data['imu']),'r')
-        pl.plot(data['rid'],np.log(data['imu']-data['isd']),'r--')
-        pl.plot(data['rid'],np.log(data['imu']+data['isd']),'r--')
-        pl.title('Predictive distributions for Germany')
-    elif i==1:
-        pl.plot(data['rid'],data['rmu'],'r')
-        pl.plot(data['rid'],data['rmu']-data['rsd'],'r--')
-        pl.plot(data['rid'],data['rmu']+data['rsd'],'r--')
-    elif i==2:
-        pl.plot(data['mid'],data['mpr'],'r')
-    else:
-        pl.plot(data['pid'],data['phi'],'r')
-    pl.ylabel('log(I(t)) R0(t) Mobility Cosmo$\phi$'.split(' ')[i])
-pl.xlabel('Days after Feb 14th 2020')
-pl.tight_layout()
-pl.savefig('germany-ppc.png', dpi=300)
-pl.show()
 
-
-
-# param sweep duration of second confinement, show CI on peak I(t), to establish minimum duration for maxim I(t)
-# figure showing forecast CI for different interventions
-
-
-# "nice" figure with a few distributions and ppc time series
+# Figure X2: posteriors & posterior predictive
 fig = pl.figure()
 csv_ = {k:v[-1000:] for k,v in fits['cov_Gamma'].items()}
 # posterior distributions 3x2+4x1
 def php(x,mu,sd):
+    "plot a posterior histogram and prior"
     pl.hist(x, 40, alpha=0.5, fc='red', density=True, orientation="horizontal")
     lo = x.min()# min(x.min(), mu-sd)
     hi = x.max() #max(x.max(), mu+sd)
     _ = np.r_[lo:hi:100j]
     pl.plot(stats.norm.pdf(_, mu, sd), _, 'k', alpha=0.5, linewidth=5)
     pl.yticks(np.percentile(x,[2.5,50,97.5]))
+    # try to have reasonable number of significant digits:
     from matplotlib.ticker import FormatStrFormatter
     pl.gca().yaxis.set_major_formatter(FormatStrFormatter(f'%.{max(2,int(2-np.log10(x.mean())))}f'))
+    # x axis is irrelevant here
     pl.xticks([])
     pl.grid(1)
 fig.set_constrained_layout(True)
@@ -281,6 +245,7 @@ for i, k in enumerate('ih rmu mpr phi'.split(' ')):
         pl.plot(data['rid'],data['rmu'],'r', linewidth=2, alpha=0.5)
         #pl.plot(data['rid'],data['rmu']-data['rsd'],'r--')
         #pl.plot(data['rid'],data['rmu']+data['rsd'],'r--')
+        pl.yticks([1,4])
     elif i==2:
         pl.plot(data['mid'],data['mpr'],'r', alpha=0.5, linewidth=2)
     else:
@@ -290,3 +255,28 @@ pl.xlabel('Days after Feb 14th 2020')
 pl.tight_layout()
 pl.savefig('germany-inversion.png', dpi=300)
 pl.show()
+
+
+
+# TODO figure showing forecast CI for different interventions?
+
+
+
+"""
+## another nice figure to show the different among models in terms of the data
+# normalize each I(t) and R(t) estimate to the data as a z score
+# plot CI bands
+# expect to see tightest bands for
+pl.figure()
+leg = []
+for i,k in enumerate('no_pse cov_Gamma'.split()):
+    v = fits[k]
+    l,m,h=np.percentile(v['rh'][-1000:],[0.5,50,99.5],axis=0)
+    pl.fill_between(np.r_[:l.size], l,h, color='bk'[i], alpha=0.2)
+    # pl.plot(m, 'bk'[i], alpha=0.5)
+    leg.append(k)
+pl.plot(data['rid'], data['rmu'], 'r', alpha=0.4)
+pl.legend('no_pse cov_Gamma R0'.split())
+pl.show()
+"""
+
