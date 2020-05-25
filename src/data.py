@@ -12,22 +12,26 @@ data_root = os.path.abspath(
 
 google_country_codes = {
         'france': 'FR',
-        'germany': 'DE'
+        'germany': 'DE',
+        'denmark': 'DK',
 }
 
 apple_country_codes = {
         'france': 'France',
-        'germany': 'Germany'
+        'germany': 'Germany',
+        'denmark': 'Denmark',
 }
 
 datahub_country_codes = {
         'france': 'France',
-        'germany': 'Germany'
+        'germany': 'Germany',
+        'denmark': 'Denmark',
 }
 
 ic_country_codes = {
         'france': 'France',
-        'germany': 'Germany'
+        'germany': 'Germany',
+        'denmark': 'Denmark',
 }
 
 def load_mobility(country='france', provider='google', agregate=''):
