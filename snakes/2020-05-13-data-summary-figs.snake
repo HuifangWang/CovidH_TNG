@@ -22,7 +22,7 @@ processed_root = os.path.join(data.data_root, 'processed')
 
 start_date=datetime.date(2020, 2, 15)
 
-countries = ['france', 'germany']
+countries = ['france', 'germany', 'denmark']
 
 cosmo_dates = [
     'Mar 04',
@@ -69,9 +69,10 @@ rule ic_model:
         fig=os.path.join( fig_root, 'ic_model.png'),
     run:
         nrows = 5
-        fig, axs = plt.subplots(nrows=nrows, ncols=2, figsize=(10,nrows*2.4), sharex=True)
+        ncols = len(countries)
+        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5*ncols,nrows*2.4), sharex=True)
 
-        for i, country in enumerate(['germany', 'france']):
+        for i, country in enumerate(countries):
             df = data.load_imperial_college_results(country)
             ax = axs[0,i]
             sns.lineplot(

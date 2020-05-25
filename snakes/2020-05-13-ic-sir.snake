@@ -6,6 +6,7 @@ rule all:
     input:
         os.path.join(data.data_root, 'processed', 'france_imperial_college_sir.csv'),
         os.path.join(data.data_root, 'processed', 'germany_imperial_college_sir.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_imperial_college_sir.csv'),
 
 
 rule imperial_college:
