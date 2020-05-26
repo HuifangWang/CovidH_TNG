@@ -3,10 +3,9 @@ functions {
     return x[2:cols(x)] - x[1:cols(x)-1];
   }
   
-  matrix run(int nt, real gamma, vector c, vector Gamma, vector ic, real alpha, real J, int nii) {
+  matrix run(int nt, real gamma, vector c, vector Gamma, vector ic, real alpha, real J, int nii, real[] Jb, int reject_) {
     real dt = 1.0;
     real sqrt_dt = sqrt(dt);
-    real Jb = 0.0;
     real Lambda = 1.0 / 80.0 / 365.0 / 2.0;
     real mu = 1.0 / 80.0/ 365.0;
     // real alpha = 0.2;
@@ -26,13 +25,9 @@ functions {
     matrix[10, nt] yt;
     yt[,1] = to_vector(y);
     for (t in 2:nt) {
-      real Jb_ = Jb;
-      if (t == 33) Jb = J; // 34 for Germany
-      if (t == 90) Jb = J/2;
-      if (t == 150) Jb = 0.0;
-      // sigmoidal reset
-      if (Jb < Jb_)
-	y[,5] = atanh(tanh(y[,5]) * square(Jb/Jb_));
+      if (Jb[t] < Jb[t-1])
+	y[,5] = atanh(tanh(y[,5]) * square(Jb[t]/Jb[t-1]));
+      real Jb_ = J * Jb[t];
       real dt_ = dt / nii;
       for (ii in 1:nii) { // dt=0.25 to handle bigger J jumps
 	for (i in 1:4) {
@@ -56,19 +51,25 @@ functions {
 	    real dS	= Lambda - beta*sum_I*S - mu*S;
 	    // d log I = beta*(sum_S-alpha) - mu
 	    real dI	= beta*(sum_S-alpha)*I - mu*I;
-	    real dbeta	= -(beta - beta0 + Jb*beta) - gamma*(phi-phi0)*(beta - beta0);
-	    real dphi	= -(phi - phi0 + h*Jb)/tau - c[g]*tanh(2*u)*(Jb>0);
+	    real dbeta	= -(beta - beta0 + Jb_*beta) - gamma*(phi-phi0)*(beta - beta0);
+	    real dphi	= -(phi - phi0 + h*Jb_)/tau - c[g]*tanh(2*u)*(Jb_>0);
 	    real du       = -Gamma[g]*(beta - beta0)/sigma; // u0 zero
 
 	    k[i][g,] = [dS, dI, dbeta, dphi, du];
 	  }
 	}
-	y += (dt_/6)*(k[1] + 2*k[2] + 2*k[3] + k[4]); // rk4 update
+	{
+	  matrix[2,5] yu = (dt_/6)*(k[1] + 2*k[2] + 2*k[3] + k[4]); // rk4 update
+	  if ((y[1,3]+yu[1,3])<0 || (y[2,3]+yu[2,3])<0)
+	    reject("negative beta ", t, ", ", ii, ", ", y[,3]', " += ", yu[,3]');
+	  y += yu;
+	}
       }
       for (g in 1:2)
 	for (j in 1:3)
 	  if (y[g,j] < 0) {
-	    reject("t=",t," y[",g,",",j,"] < 0, but should not be!");
+	    if (reject_)
+	      reject("t=",t," y[",g,",",j,"] < 0, but should not be!");
 	    y[g,j] = 0.0;
 	  }
       yt[,t] = to_vector(y); // save
@@ -102,6 +103,9 @@ data {
   int iid[ni];
   real imu[ni]; // i(t) mean
   real isd[ni]; // i(t) ci/4
+  int nc;
+  int cid[nc];
+  int cases[nc];
   int nm;
   int mid[nm];
   real mpr[nm]; // mobility proporation reduction
@@ -120,22 +124,34 @@ data {
 
 transformed data {
   int nt = 210;
+  // from Spase for Germany
+  real Jv[7] =	{0.0, 0.05, 0.1, 0.15,  3,   2,   1};
+  int Ji[7] =	{  1,   21,  27,   29, 37,  82, 82+60};
+  real Jb[nt] = rep_array(-1.0, nt);
+  Jb[Ji] = Jv;
+  for (t in 1:nt)
+    if (Jb[t] < 0)
+      Jb[t] = Jb[t - 1];
+  for (t in 80:86)
+    print("Jb[", t, "] = ", Jb[t]);
 }
 
 parameters {
   real<lower=0> gamma_;
   vector<lower=0>[2] Gamma_;
   vector<lower=0>[2] c_;
-  real alpha;
-  real J;
+  real<lower=0> alpha;
+  real<lower=0> J;
   real mpr_a;
   real mpr_b;
   real phi_a;
   real phi_b;
+  // real<lower=0> beta0;
+  real ur;
 }
 
 transformed parameters {
-  vector[4] ic = [I0, rmu[1]*alpha, 1, 0]'; // I0, beta, phi u
+  vector[4] ic = [I0, 0.4, 1, 0]'; // I0, beta, phi u
   real gamma = mc_use_pse ? gamma_ : 0.0;
   vector[2] Gamma;
   vector[2] c;
@@ -146,23 +162,29 @@ transformed parameters {
     Gamma = [Gamma_[1], Gamma_[1]]';
     c = [c_[1], c_[2]]';
   }
-  matrix[10, nt] yt = run(nt, gamma*mc_use_pse, c, Gamma, ic, alpha, J, nii);
+  matrix[10, nt] yt = run(nt, gamma*mc_use_pse, c, Gamma, ic, alpha, J, nii, Jb, 1);
   row_vector[nt] rh = (yt[5,]+yt[6,]) / alpha * 0.5;
-  row_vector[nt] ih = (yt[3,]+yt[4,]) * 86e6;
+  row_vector[nt] It = (1.0-(yt[1,]+yt[2,]))*86e6;
+  row_vector<lower=0>[nt-1] ih = It[2:nt]-It[1:nt-1];
   matrix[3,nt] pse = yt2pse(yt);
+  real eur = exp(ur);
 }
 
 model {
   // SIR
-  J ~ normal(4.0,0.1*eps) T[0,];
+  J ~ normal(1.0,0.1*eps) T[0,];
   alpha ~ normal(0.1,0.01*eps) T[0,];
+  // beta0 ~ normal(0.4,0.04*eps) T[0,];
   gamma ~ normal(0.1, 0.01*eps) T[0,];
   Gamma_[1] ~ normal(1.0,0.1*eps) T[0,];
   Gamma_[2] ~ normal(1.0,0.1*eps) T[0,];
   c[1] ~ normal(0.5,0.05*eps) T[0,];
   c[2] ~ normal(5.0,0.5*eps) T[0,];
-  rmu ~ normal(rh[rid],rsd);
+  // rmu ~ normal(rh[rid],rsd);
   imu ~ normal(ih[iid],isd);
+  ur ~ std_normal();
+  for (i in cid)
+    cases[i] ~ poisson(ih[i]*eur);
   // PSE
   mpr_a ~ normal(1, 1);
   mpr_b ~ normal(-1, 1);
@@ -174,13 +196,16 @@ model {
 
 generated quantities {
   matrix[10, nt] yt_ = yt;
-  vector[nt] pp_rmu;
+  vector[nt] pp_imu;
   vector[nt] pp_mpr;
   vector[nt] pp_phi;
+  int pp_cases[nt];
   for (t in 1:nt) {
-    pp_rmu[t] = normal_rng(rh[t],rsd[min({nr,t})]);
+    int t_ = min({t,nt-1});
+    pp_imu[t] = normal_rng(ih[t_],ih[t_]/4);
     pp_mpr[t] = normal_rng(mpr_a*pse[1,t]+mpr_b, 0.1);
     pp_phi[t] = normal_rng(phi_a*pse[2,t]+phi_b, 0.3);
+    pp_cases[t] = poisson_rng(ih[t_]*eur);
   }
 }
 

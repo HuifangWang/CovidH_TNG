@@ -4,7 +4,6 @@ import pandas as pd
 import os
 import datetime
 
-
 ## load all the data
 
 
@@ -16,8 +15,23 @@ de_rci.set_index(de_rci.date, inplace=True)
 de_rci.set_index((de_rci.index - t0).days, inplace=True)
 print(de_rci.head())
 
-de_pci = de_sir.filter(regex='date|pred.*infec.*cumulative$')
-_, kmu, kqlo, kqhi = de_pci.columns
+pl.plot(de_sir['reported_cases'])
+pl.plot(de_sir['reported_deaths'])
+pl.plot(de_sir['predicted_infections_lower_CI_95'], 'k--')
+pl.plot(de_sir['predicted_infections_higher_CI_95'], 'k--')
+pl.plot(de_sir['predicted_infections_mean'], 'k')
+pl.plot(de_sir['estimated_deaths_mean'], 'r')
+pl.plot(de_sir['estimated_deaths_lower_CI_95'], 'r--')
+pl.plot(de_sir['estimated_deaths_higher_CI_95'], 'r--')
+pl.show()
+
+
+#de_pci = de_sir.filter(regex='date|pred.*infec.*cumulative$|reported_cases$|reported_deaths$')
+de_pci = de_sir.filter(regex='date|pred.*mean$|pred.*CI_95$|reported_cases$|reported_deaths$')
+_, krc, kmu, kqlo, kqhi, krd = de_pci.columns
+print(krd)
+de_irc = np.r_[de_pci[krc]]
+de_ird = np.r_[de_pci[krd]]
 de_imu = np.r_[de_pci[kmu]]
 de_isd = (np.r_[de_pci[kqhi]] - np.r_[de_pci[kqlo]]) / 4 # 95% is z -1.9 to 1.9
 
@@ -42,15 +56,17 @@ de_phi.set_index((de_phi.index - t0).days, inplace=True)
 de_iphi = de_phi.index
 de_vphi = np.r_[de_phi][:, 1]
 
-pl.plot(de_idx, de_rmu, 'ko')
-pl.plot(de_idx, de_rsd, 'kx')
+#pl.plot(de_idx, de_rmu, 'ko')
+#pl.plot(de_idx, de_rsd, 'kx')
 pl.plot(de_idx, np.log(de_imu), 'go')
 pl.plot(de_idx, np.log(de_isd), 'gx')
+# pl.plot(de_idx, np.log(np.cumsum(de_imu)), 'go')
 pl.plot(de_mobi, de_mobp, 'bo')
 pl.plot(de_iphi, de_vphi, 'ro')
 pl.title("Data for Germany")
 pl.xlabel("Days after Feb 15th")
-pl.legend("$\mu_{R0(t)}$ $\sigma^2_{R0(t)}$ $\log{\mu_{I(t)}}$ $\log{\sigma^2_{I(t)}}$ $Mobility$ $Cosmo\phi$".split(' '))
+#pl.legend("$\mu_{R0(t)}$ $\sigma^2_{R0(t)}$ $\log{\mu_{I(t)}}$ $\log{\sigma^2_{I(t)}}$ $Mobility$ $Cosmo\phi$".split(' '))
+pl.legend("$\log{\mu_{i(t)}}$ $\log{\sigma^2_{i(t)}}$ $Mobility$ $Cosmo\phi$".split(' '))
 pl.grid(1)
 pl.savefig('german-data.png', dpi=300)
 pl.show()
@@ -62,7 +78,7 @@ cs = '/Volumes/crypt/cmdstan-2.22.1'
 stanio.compile_model(cs, 'model')
 
 data = {
-    'nii': 4,
+    'nii': 20,
     'nr': len(de_idx),
     'rid': de_idx + 1,
     'rmu': de_rmu,
@@ -72,6 +88,9 @@ data = {
     'iid': de_idx + 1,
     'imu': de_imu,
     'isd': de_isd,
+    'nc': len(de_idx),
+    'cid': de_idx + 1,
+    'cases': de_irc.astype('i'),
     'nm': len(de_mobi),
     'mid': np.r_[de_mobi] + 1,
     'mpr': de_mobp,
@@ -79,7 +98,7 @@ data = {
     'pid': np.r_[de_iphi] + 1,
     'phi': de_vphi,
     'I0': 1e-6,
-    'eps': 10.0,
+    'eps': 0.1,
     # model comparision params
     'mc_use_pse': 1,
     'mc_use_groups': 1,
@@ -88,10 +107,11 @@ data = {
     }
 init = {
     'gamma': 0.1,
-    'Gamma_': np.r_[1.0],
+    'Gamma_': np.r_[1.0, 1.0],
     'c': np.r_[0.5,5.0],
-    'alpha': 0.06,
-    'J': 4.0,
+    'alpha': 0.1,
+    'J': 1.0,
+    'ur': -1,
 }
 stanio.rdump('model.R', data)
 stanio.rdump('init.R', init)
