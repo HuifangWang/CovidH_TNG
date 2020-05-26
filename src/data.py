@@ -81,3 +81,12 @@ def date_index_to_days(df, day0):
         Date of the day_0.
     """
     return df.set_index((df.index - day0).days)
+
+def load_imperial_college_interventions(country):
+    df = pd.read_csv(
+        f'{data_root}/external/imperial_college_interventions/interventions.csv',
+        parse_dates=['Date effective'],
+        dayfirst=True
+    )
+    return df.loc[df.Country==ic_country_codes[country] ]
+    
