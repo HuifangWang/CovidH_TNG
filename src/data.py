@@ -12,22 +12,26 @@ data_root = os.path.abspath(
 
 google_country_codes = {
         'france': 'FR',
-        'germany': 'DE'
+        'germany': 'DE',
+        'denmark': 'DK',
 }
 
 apple_country_codes = {
         'france': 'France',
-        'germany': 'Germany'
+        'germany': 'Germany',
+        'denmark': 'Denmark',
 }
 
 datahub_country_codes = {
         'france': 'France',
-        'germany': 'Germany'
+        'germany': 'Germany',
+        'denmark': 'Denmark',
 }
 
 ic_country_codes = {
         'france': 'France',
-        'germany': 'Germany'
+        'germany': 'Germany',
+        'denmark': 'Denmark',
 }
 
 def load_mobility(country='france', provider='google', agregate=''):
@@ -77,3 +81,12 @@ def date_index_to_days(df, day0):
         Date of the day_0.
     """
     return df.set_index((df.index - day0).days)
+
+def load_imperial_college_interventions(country):
+    df = pd.read_csv(
+        f'{data_root}/external/imperial_college_interventions/interventions.csv',
+        parse_dates=['Date effective'],
+        dayfirst=True
+    )
+    return df.loc[df.Country==ic_country_codes[country] ]
+    

@@ -14,6 +14,11 @@ rule all:
         os.path.join(data.data_root, 'processed', 'germany_google_mobility_report_week_avg.csv'),
         os.path.join(data.data_root, 'processed', 'germany_apple_mobility_report_week_avg.csv'),
         os.path.join(data.data_root, 'processed', 'germany_covid19.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_google_mobility_report.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_apple_mobility_report.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_google_mobility_report_week_avg.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_apple_mobility_report_week_avg.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_covid19.csv'),
 
 rule google_mobility_report:
     input: 

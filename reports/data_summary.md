@@ -52,7 +52,7 @@ Additionally, week averages are available in the files `{country}_{provider}_mob
 
 
 
-## COSMO survey results
+## COSMO survey results - Germany
 
 The COVID-19 Snapshot Monitoring ([COSMO](https://projekte.uni-erfurt.de/cosmo2020/cosmo-analysis.html)) is a project performing repeated surveys on public knowledge, risk perception, protective behaviour, and trust during the COVID-19 outbreak. Originally developed in Germany, it is also run in parallel in few other countries, such as [Denmark](http://copsy.dk/cosmo/).
 
