@@ -47,21 +47,34 @@ functions {
 	    real beta	= y_[g,3];
 	    real phi	= y_[g,4];
 	    real u	= y_[g,5];
-
+        
 	    real dS	= Lambda - beta*sum_I*S - mu*S;
 	    // d log I = beta*(sum_S-alpha) - mu
 	    real dI	= beta*(sum_S-alpha)*I - mu*I;
-	    real dbeta	= -(beta - beta0 + Jb_*beta) - gamma*(phi-phi0)*(beta - beta0);
+	    real dbeta	= -(beta - beta0 + Jb_*beta) + gamma*(phi-phi0)*(beta - beta0);
 	    real dphi	= -(phi - phi0 + h*Jb_)/tau - c[g]*tanh(2*u)*(Jb_>0);
 	    real du       = -Gamma[g]*(beta - beta0)/sigma; // u0 zero
+
+        if ((beta + dt_*dbeta)<0) {
+          reject("beta<0: dbeta=", dbeta, " = ", "-(beta - beta0 + Jb_*beta)=", -(beta - beta0 + Jb_*beta), "  - gamma*(phi-phi0)*(beta - beta0))=",- gamma*(phi-phi0)*(beta - beta0), "\n\tgamma = ", gamma, ", phi - phi0 = ", phi, " - ", phi0);
+        }
 
 	    k[i][g,] = [dS, dI, dbeta, dphi, du];
 	  }
 	}
 	{
 	  matrix[2,5] yu = (dt_/6)*(k[1] + 2*k[2] + 2*k[3] + k[4]); // rk4 update
-	  if ((y[1,3]+yu[1,3])<0 || (y[2,3]+yu[2,3])<0)
-	    reject("negative beta ", t, ", ", ii, ", ", y[,3]', " += ", yu[,3]');
+      /*
+	  if ((y[1,3]+yu[1,3])<0 || (y[2,3]+yu[2,3])<0) {
+	    print(" !! beta about to go negative...");
+	    print("t = ", t, "; ii = ", ii);
+	    print("beta - beta0 = ", y_[,3]' - beta0);
+	    print("Jb_ * beta", Jb_ * y_[,3]');
+	    print("phi - phi0", y_[,4]' - phi0);
+	    print("beta = ", y_[,3]', " += dbeta = ", k[4][,3]');
+	    reject(" !! FATALITYYYY !!");
+	  }
+      */
 	  y += yu;
 	}
       }
@@ -137,11 +150,11 @@ transformed data {
 }
 
 parameters {
-  real<lower=0> gamma_;
-  vector<lower=0>[2] Gamma_;
+  //real<lower=0> gamma_;
+  //vector<lower=0>[2] Gamma_;
   vector<lower=0>[2] c_;
   real<lower=0> alpha;
-  real<lower=0> J;
+  //real<lower=0> J;
   real mpr_a;
   real mpr_b;
   real phi_a;
@@ -150,36 +163,40 @@ parameters {
   real ur;
 }
 
+
 transformed parameters {
   vector[4] ic = [I0, 0.4, 1, 0]'; // I0, beta, phi u
+  real gamma_ = 0.1;
   real gamma = mc_use_pse ? gamma_ : 0.0;
   vector[2] Gamma;
   vector[2] c;
+  real J = 1.5;
+  vector[2] Gamma_ = [0.3,3.0]';
   if (mc_use_groups) {
     c = c_;
     Gamma = mc_ind_Gamma ? Gamma_ : [Gamma_[1]/mc_Gamma_cov, Gamma_[1]*mc_Gamma_cov]';
   } else {
     Gamma = [Gamma_[1], Gamma_[1]]';
-    c = [c_[1], c_[2]]';
+    c = [c_[1]*5, c_[1]*0.2]';
   }
   matrix[10, nt] yt = run(nt, gamma*mc_use_pse, c, Gamma, ic, alpha, J, nii, Jb, 1);
   row_vector[nt] rh = (yt[5,]+yt[6,]) / alpha * 0.5;
   row_vector[nt] It = (1.0-(yt[1,]+yt[2,]))*86e6;
-  row_vector<lower=0>[nt-1] ih = It[2:nt]-It[1:nt-1];
+  row_vector/*<lower=0>*/[nt-1] ih = It[2:nt]-It[1:nt-1];
   matrix[3,nt] pse = yt2pse(yt);
   real eur = exp(ur);
 }
 
 model {
   // SIR
-  J ~ normal(1.0,0.1*eps) T[0,];
+  // J ~ normal(1.0,0.0001*eps) T[0,];
   alpha ~ normal(0.1,0.01*eps) T[0,];
   // beta0 ~ normal(0.4,0.04*eps) T[0,];
-  gamma ~ normal(0.1, 0.01*eps) T[0,];
-  Gamma_[1] ~ normal(1.0,0.1*eps) T[0,];
-  Gamma_[2] ~ normal(1.0,0.1*eps) T[0,];
-  c[1] ~ normal(0.5,0.05*eps) T[0,];
-  c[2] ~ normal(5.0,0.5*eps) T[0,];
+  // gamma ~ normal(0.1, 0.01*eps) T[0,];
+  // Gamma_[1] ~ normal(1.0,0.1*eps) T[0,];
+  // Gamma_[2] ~ normal(1.0,0.1*eps) T[0,];
+  c_[1] ~ normal(0.5,0.05*eps) T[0,];
+  c_[2] ~ normal(5.0,0.5*eps) T[0,];
   // rmu ~ normal(rh[rid],rsd);
   imu ~ normal(ih[iid],isd);
   ur ~ std_normal();

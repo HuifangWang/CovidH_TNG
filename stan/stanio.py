@@ -180,21 +180,73 @@ def parse_summary_csv(fname):
 def compile_model(cs, name):
     if os.path.exists(f'{name}.hpp') and os.path.getmtime(f'{name}.hpp') > os.path.getmtime(f'{name}.stan'):
         return
-    assert os.system(f"{cs}/bin/stanc --include_paths=$PWD --o {name}.hpp {name}.stan")==0
-    assert os.system(f"make -C {cs} $PWD/{name}")==0
+    cmd = f"set -eux; {cs}/bin/stanc --name=model --include_paths=$PWD --o=$PWD/{name}.hpp $PWD/{name}.stan"
+    bash(cmd)
+    #assert os.system(cmd)==0
+    bash(f"make -C {cs} $PWD/{name}")
     
 
 def diagnose_csvs(cs, *csvs):
     spcsvs = ' '.join(csvs)
-    os.system(f"{cs}/bin/diagnose {spcsvs}")
+    bash(f"{cs}/bin/diagnose {spcsvs}")
     
 
 def run(cs, name, data=None, sampler_args=''):
     with tempfile.TemporaryDirectory() as td:
         rdump(f'{td}/data', data or {})
-        assert os.system(f'./{name} sample {sampler_args} '
-                         f'data file={td}/data output file={td}/samples')==0
+        bash(f'./{name} sample {sampler_args} '
+                         f'data file={td}/data output file={td}/samples')
         diagnose_csvs(cs, f'{td}/samples')
         csv = parse_csv(f'{td}/samples')
     return csv
-    
+
+
+# this stuff makes bash stdout/stderr show up in jupyter notebook
+# https://stackoverflow.com/a/59339154
+import signal
+import subprocess as sp
+import sys
+
+
+class VerboseCalledProcessError(sp.CalledProcessError):
+    def __str__(self):
+        if self.returncode and self.returncode < 0:
+            try:
+                msg = "Command '%s' died with %r." % (
+                    self.cmd, signal.Signals(-self.returncode))
+            except ValueError:
+                msg = "Command '%s' died with unknown signal %d." % (
+                    self.cmd, -self.returncode)
+        else:
+            msg = "Command '%s' returned non-zero exit status %d." % (
+                self.cmd, self.returncode)
+
+        return f'{msg}\n' \
+               f'Stdout:\n' \
+               f'{self.output}\n' \
+               f'Stderr:\n' \
+               f'{self.stderr}'
+
+
+def bash(cmd, print_stdout=True, print_stderr=True):
+    proc = sp.Popen(cmd, stderr=sp.PIPE, stdout=sp.PIPE, shell=True, universal_newlines=True,
+                    executable='/bin/bash')
+
+    all_stdout = []
+    all_stderr = []
+    while proc.poll() is None:
+        for stdout_line in proc.stdout:
+            if stdout_line != '':
+                if print_stdout:
+                    print(stdout_line, end='')
+                all_stdout.append(stdout_line)
+        for stderr_line in proc.stderr:
+            if stderr_line != '':
+                if print_stderr:
+                    print(stderr_line, end='', file=sys.stderr)
+                all_stderr.append(stderr_line)
+
+    stdout_text = ''.join(all_stdout)
+    stderr_text = ''.join(all_stderr)
+    if proc.wait() != 0:
+        raise VerboseCalledProcessError(proc.returncode, cmd, stdout_text, stderr_text)

@@ -12,39 +12,41 @@ try:
     os.unlink('fit.csv')
 except:
     pass
-assert 0==os.system(f'./model sample adapt delta=0.99 save_warmup=1 algorithm=hmc engine=nuts max_depth=15 random seed=1337 init=init.R data file=model.R output refresh=1 file=fit.csv'), f'failed!'
-os.system(f'../../cmdstan-2.22.1/bin/diagnose fit.csv')
+assert 0==os.system(f'./model sample adapt delta=0.95 init=init.R data file=model.R output refresh=1 file=fit.csv'), f'failed!'
+stanio.diagnose_csvs(cs, 'fit.csv')
 
 csv_ = stanio.parse_csv(f'fit.csv')
 csv = {k:v[-1000:] for k,v in csv_.items()}
-imu = csv['pp_imu']
-prc = csv['pp_cases']
-pl.figure()
-pl.semilogy(de_idx, de_irc)
-pl.semilogy(de_idx, de_imu)
-pl.semilogy(np.percentile(imu,2.5,axis=0), 'k--')
-pl.semilogy(np.percentile(imu,97.5,axis=0), 'k--')
-pl.semilogy(np.percentile(imu,2.5,axis=0), 'k--')
-pl.semilogy(np.percentile(imu,97.5,axis=0), 'k--')
-pl.legend('icl_reports icl_predicted pp2.5% pp97.5%'.split(' '))
-pl.title('Daily new infections')
-pl.savefig('debug.png',dpi=100)
-pl.close('all')
 
-pl.figure()
-pl.plot(csv['gamma'], csv['alpha'], 'k.')
-pl.show()
+
+# imu = csv['pp_imu']
+# prc = csv['pp_cases']
+# pl.figure()
+# pl.semilogy(de_idx, de_irc)
+# pl.semilogy(de_idx, de_imu)
+# pl.semilogy(np.percentile(imu,2.5,axis=0), 'k--')
+# pl.semilogy(np.percentile(imu,97.5,axis=0), 'k--')
+# pl.semilogy(np.percentile(imu,2.5,axis=0), 'k--')
+# pl.semilogy(np.percentile(imu,97.5,axis=0), 'k--')
+# pl.legend('icl_reports icl_predicted pp2.5% pp97.5%'.split(' '))
+# pl.title('Daily new infections')
+# pl.savefig('debug.png',dpi=100)
+# pl.close('all')
+
+# pl.figure()
+# pl.plot(csv['gamma'], csv['alpha'], 'k.')
+# pl.show()
     
 
-import datetime as dt
-ts = [
-    dt.datetime(year=2020, month=2, day=15),
-    dt.datetime(year=2020, month=3, day=6),
-    dt.datetime(year=2020, month=3, day=12),
-    dt.datetime(year=2020, month=3, day=14),
-    dt.datetime(year=2020, month=3, day=22),
-    dt.datetime(year=2020, month=5, day=6)
-    ]
-t0 = ts[0]
-for t in ts:
-    print(t, 'is day', (t - t0).days)
+# import datetime as dt
+# ts = [
+#     dt.datetime(year=2020, month=2, day=15),
+#     dt.datetime(year=2020, month=3, day=6),
+#     dt.datetime(year=2020, month=3, day=12),
+#     dt.datetime(year=2020, month=3, day=14),
+#     dt.datetime(year=2020, month=3, day=22),
+#     dt.datetime(year=2020, month=5, day=6)
+#     ]
+# t0 = ts[0]
+# for t in ts:
+#     print(t, 'is day', (t - t0).days)

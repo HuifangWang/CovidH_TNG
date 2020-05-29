@@ -72,9 +72,9 @@ pl.savefig('german-data.png', dpi=300)
 pl.show()
 
 
+import importlib as il; il.reload(stanio)
 import stanio
-cs = '/Volumes/crypt/cmdstan-2.22.1'
-
+cs = '/home/duke/Downloads/cmdstan-2.22.1'
 stanio.compile_model(cs, 'model')
 
 data = {
@@ -98,7 +98,7 @@ data = {
     'pid': np.r_[de_iphi] + 1,
     'phi': de_vphi,
     'I0': 1e-6,
-    'eps': 0.1,
+    'eps': 1,
     # model comparision params
     'mc_use_pse': 1,
     'mc_use_groups': 1,
