@@ -21,17 +21,19 @@ parameters {
 
 transformed parameters {
   vector[nt] b = r*alpha;
-  vector[nt] p = rep_vector(b[1],nt);
+  vector[nt] p_ = rep_vector(b[1],nt);
+  vector[nt] p;
   vector[nt] u = rep_vector(0,nt);
   for (t in 1:nt-1) {
     real Js = t*1.0/nt*0.13; // NY 40%, 2mo
-    real db = (b[1] + a*m[t] - Js + exp(g)*u[t]) - l*b[t];
-    real dp = (b[t] - p[t] + u[t]*0.9)/3.0;
+    real db = (b[1] + a*m[t] - Js + g*u[t]) - l*b[t];
+    real dp = (b[t] - p_[t] + u[t]*0.9)/3.0;
     real du = (b[1] - b[t] - u[t])/21.0;
     b[t+1] = b[t] + db + s*z[t];
-    p[t+1] = p[t] + dp;
+    p_[t+1] = p_[t] + dp;
     u[t+1] = u[t] + du;
   }
+  p = (p_ - b[1]) * 35;
 }
 
 model {
@@ -41,7 +43,15 @@ model {
   a ~ std_normal();
   u ~ std_normal();
   s ~ lognormal(0,1);
+  g ~ lognormal(0.1,1);
   // condition on data
   r ~ normal(b/alpha,s);
-  P ~ normal((p[iP]-b[1])*35,s);
+  P ~ normal(p[iP],sqrt(s));
+}
+
+generated quantities {
+  vector[nt] gq_r;
+  vector[8] gq_P;
+  for (t in 1:nt) gq_r[t] = normal_rng(b[t]/alpha,s);
+  for (t in 1: 8) gq_P[t] = normal_rng(p[iP[t]], sqrt(s));
 }
