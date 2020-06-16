@@ -41,7 +41,6 @@ model {
   to_vector(z) ~ std_normal();
   l ~ lognormal(1,1);
   a ~ std_normal();
-  u ~ std_normal();
   s ~ lognormal(0,1);
   g ~ lognormal(0.1,1);
   // condition on data

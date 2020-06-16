@@ -5,6 +5,8 @@ import os
 import scipy.stats
 
 
+# the Stan run can sometimes get poorly initialized and
+# results are crap, just rerun it.
 cs = '~/crypt/cmdstan-2.22.1'
 os.system('./beta sample data file=beta.R output file=beta.csv')
 stanio.diagnose_csvs(cs, 'beta.csv')
