@@ -1,14 +1,16 @@
 import matplotlib.dates as mdates
 import matplotlib.pylab as plt
+import matplotlib
 from src import data
 
-def format_xaxis_dates(ax):
+def format_xaxis_dates(ax, rotation=45):
     ax.xaxis.set_major_locator(
             mdates.WeekdayLocator( byweekday=mdates.MO )
     )
     ax.xaxis.set_major_formatter(
             mdates.DateFormatter('%b %d')
     )
+    ax.xaxis.set_tick_params(rotation=rotation)
 
 def annotate_interventions(ax,country, legend=False):
     types = [
@@ -40,7 +42,11 @@ def annotate_interventions(ax,country, legend=False):
             for _,(date,t,event) in df[['Date effective','Type','Event']].iterrows()
         ]
 
+        legends = [c for c in ax.get_children() if isinstance(c, matplotlib.legend.Legend)]
 
         ax.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, -0.3), ncol=2)
+
+        for legend in legends:
+            ax.add_artist(legend)
 
 
