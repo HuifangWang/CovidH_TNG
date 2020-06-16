@@ -51,8 +51,15 @@ pl.title('l~lN(1,1)')
 pl.grid(1)
 
 pl.subplot(326)
-pl.hist(csv['g'], 30)
-pl.title('g~lN(0.1,1)')
+x = np.r_[:1:0.01]
+y = scipy.stats.lognorm.pdf(x,1,loc=0)
+pl.plot(x,y, 'k')
+pl.hist(csv['g'], 50, density=True)
+pl.legend((r'$\log N(0.1,1)$', r'$\hat{\gamma}$', ))
+# pl.title('g~lN(0.1,1)')
+pl.xlabel(r'$\gamma$')
+pl.title(r'$p(\gamma\|R0(t),\phi(t))$')
+pl.yticks(pl.yticks()[0], [])
 pl.grid(1)
 
 

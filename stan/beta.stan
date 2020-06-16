@@ -8,7 +8,6 @@ data {
 
 transformed data {
   real alpha = 1.0 / 14.0;
-  real a0 = (max(r)-min(r))/(max(m)-min(m));
 }
 
 parameters {
