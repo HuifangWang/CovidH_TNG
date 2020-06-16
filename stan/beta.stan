@@ -25,7 +25,7 @@ transformed parameters {
   vector[nt] u = rep_vector(0,nt);
   for (t in 1:nt-1) {
     real Js = t*1.0/nt*0.13; // NY 40%, 2mo
-    real db = (b[1] + a*m[t] - Js) - l*b[t];
+    real db = (b[1] + a*m[t] - Js + exp(g)*u[t]) - l*b[t];
     real dp = (b[t] - p[t] + u[t]*0.9)/3.0;
     real du = (b[1] - b[t] - u[t])/21.0;
     b[t+1] = b[t] + db + s*z[t];
@@ -39,6 +39,7 @@ model {
   to_vector(z) ~ std_normal();
   l ~ lognormal(1,1);
   a ~ std_normal();
+  u ~ std_normal();
   s ~ lognormal(0,1);
   // condition on data
   r ~ normal(b/alpha,s);

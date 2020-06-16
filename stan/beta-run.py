@@ -66,10 +66,11 @@ pl.hist(csv['l'], 30)
 pl.title('l~lN(1,1)')
 pl.grid(1)
 
-# pl.subplot(3,4,12)
-# pl.hist(csv['c'], 30)
-# pl.title('c~N(0,1)')
-# pl.grid(1)
+pl.subplot(3,4,12)
+pl.hist(csv['g'], 30)
+pl.title('g~lN(0,1)')
+pl.grid(1)
+
 
 pl.tight_layout()
 pl.show()
