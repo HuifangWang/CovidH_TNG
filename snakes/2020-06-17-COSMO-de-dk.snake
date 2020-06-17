@@ -1,0 +1,44 @@
+from src import data
+import pandas as pd
+from sklearn.decomposition import PCA
+
+
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'germany_cosmo_phi.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_cosmo_phi.csv'),
+
+
+rule COSMO_de:
+    input:
+        cosmo_raw = os.path.join(
+                data.data_root, 
+                'external', 
+                'COSMO', 
+                'INSERM_datapool_cleaned rawdata_COSMO_Wave 01 to 13.sav'
+
+        ),
+    output:
+        cosmo_phi = os.path.join(data.data_root, 'processed', 'germany_cosmo_phi.csv'),
+    run:
+        df = data.load_raw_cosmo_de(input.cosmo_raw) 
+        df_phi = data.phi_t(df)
+        df_phi.index = data.cosmo_dates['germany']
+        df_phi.to_csv(output.cosmo_phi, index_label='date')
+
+
+rule COSMO_dk:
+    input:
+        cosmo_raw = os.path.join(
+                data.data_root, 'external','COSMO_dk','COSMO_DK_crossSectional.mat'
+        )
+    output:
+        cosmo_phi = os.path.join(data.data_root, 'processed', 'denmark_cosmo_phi.csv'),
+    run:
+        df = data.load_raw_cosmo_dk(input.cosmo_raw) 
+        df_phi = data.phi_t(df)
+        df_phi.index = data.cosmo_dates['denmark']
+        df_phi.to_csv(output.cosmo_phi, index_label='date')
+
+    
