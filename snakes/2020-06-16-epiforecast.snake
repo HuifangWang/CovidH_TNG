@@ -1,0 +1,60 @@
+from src import data
+import pandas as pd
+
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'france_epiforecast_rt.csv'),
+        os.path.join(data.data_root, 'processed', 'germany_epiforecast_rt.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_epiforecast_rt.csv'),
+        os.path.join(data.data_root, 'processed', 'france_epiforecast_cases.csv'),
+        os.path.join(data.data_root, 'processed', 'germany_epiforecast_cases.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_epiforecast_cases.csv'),
+
+
+rule epiforecast:
+    input:
+        rt = os.path.join(
+                data.data_root, 'external', 'epiforecast', 'rt.csv'
+        ),
+        cases = os.path.join(
+                data.data_root, 'external', 'epiforecast', 'cases.csv'
+        ),
+    output:
+        rt_country = os.path.join(data.data_root, 'processed', '{country}_epiforecast_rt.csv'),
+        cases_country = os.path.join(data.data_root, 'processed', '{country}_epiforecast_cases.csv'),
+    run:
+        df  = pd.read_csv( input.rt, parse_dates=['date'])
+        df = df.loc[
+                df['country']==data.epiforecast_country_codes[wildcards.country],
+                [
+                    'date',
+                    'type',
+                    'median',
+                    'lower_90',
+                    'upper_90',
+                    'lower_50',
+                    'upper_50',
+                    'prob_control'
+                ]
+        ].set_index('date')
+
+        df.to_csv(output.rt_country)
+
+        df  = pd.read_csv( input.cases, parse_dates=['date'])
+        df = df.loc[
+                df['country']==data.epiforecast_country_codes[wildcards.country],
+                [
+                    'date',
+                    'median',
+                    'lower_90',
+                    'upper_90',
+                    'lower_50',
+                    'upper_50',
+                    'confidence'
+                ]
+        ].set_index('date')
+
+        df.to_csv(output.cases_country)
+
+        

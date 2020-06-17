@@ -34,6 +34,12 @@ ic_country_codes = {
         'denmark': 'Denmark',
 }
 
+epiforecast_country_codes = {
+        'france': 'France',
+        'germany': 'Germany',
+        'denmark': 'Denmark',
+}
+
 def load_mobility(country='france', provider='google', agregate=''):
     fname = f'{country}_{provider}_mobility_report{"_" + agregate if agregate else ""}.csv'
     return pd.read_csv(
@@ -90,3 +96,17 @@ def load_imperial_college_interventions(country):
     )
     return df.loc[df.Country==ic_country_codes[country] ]
     
+def load_epiforecast_rt(country='france'):
+    return pd.read_csv(
+            os.path.join(
+                data_root, 'processed', f'{country}_epiforecast_rt.csv'),
+            parse_dates=['date']
+    ).set_index('date')
+
+def load_epiforecast_cases(country='france'):
+    return pd.read_csv(
+            os.path.join(
+                data_root, 'processed', f'{country}_epiforecast_cases.csv'),
+            parse_dates=['date']
+    ).set_index('date')
+
