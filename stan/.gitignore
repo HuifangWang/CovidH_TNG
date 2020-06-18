@@ -1,9 +1,0 @@
-*.R
-*.csv
-*.d
-*.hpp
-*.o
-*~
-__pycache__
-model
-beta
