@@ -14,21 +14,21 @@ def fix_t0(df, date_key):
     return df
 
 
-def load_rki_r():
-    dk = "date_of_disease_onset"
-    "Load Robert Koch Institute reproduction rate values."
+def load_r0t():
+    dk = "date"
+    "Load Denmark Epiforecast reproduction rate values."
     df = pd.read_csv(
-        "../data/processed/germany_rki_nowcasting.csv", parse_dates=[dk]
+        "../data/processed/denmark_epiforecast_rt.csv", parse_dates=[dk]
     )
     df = fix_t0(df, dk)
-    df = df.filter(regex="^R_.*point")
+    df = df.filter(regex="^median$")
     return df
 
 
 def load_mob():
     dk = "date"
     df = pd.read_csv(
-        "../data/processed/germany_google_mobility_report.csv",
+        "../data/processed/denmark_google_mobility_report.csv",
         parse_dates=[dk],
     )
     df = fix_t0(df, dk)
@@ -39,7 +39,7 @@ def load_mob():
 def load_phi():
     dk = "date"
     df = pd.read_csv(
-        "../data/processed/germany_cosmo_phi.csv", parse_dates=[dk]
+        "../data/processed/denmark_cosmo_phi.csv", parse_dates=[dk]
     )
     df = fix_t0(df, dk)
     df = df.filter(regex="phi")
@@ -47,7 +47,7 @@ def load_phi():
 
 
 def main():
-    df_r = load_rki_r().loc[0:60]
+    df_r = load_r0t().loc[0:60]
     df_m = load_mob().loc[0:60]
     df_p = load_phi().iloc[1:9]  # not daily, but 8 weeks
     pl.subplot(311)
