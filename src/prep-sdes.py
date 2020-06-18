@@ -49,11 +49,20 @@ def load_phi():
 def main():
     df_r = load_rki_r().loc[0:60]
     df_m = load_mob().loc[0:60]
-    df_p = load_phi().loc[1:]  # not daily, but 8 weeks
+    df_p = load_phi().iloc[1:9]  # not daily, but 8 weeks
+    pl.subplot(311)
     pl.plot(df_r.index, np.r_[df_r])
+    pl.title("RKI R 7 day")
+    pl.grid(1)
+    pl.subplot(312)
     pl.plot(df_m.index, np.r_[df_m] / 100)
-    pl.plot(df_p.index, np.r_[df_p] / np.r_[df_p].ptp())
-    pl.legend(["RKI R 7 day", "mobility/100%", "CosmoPhi"])
+    pl.title("mobility/100%")
+    pl.grid(1)
+    pl.subplot(313)
+    pl.plot(df_p.index, np.r_[df_p])
+    pl.title("CosmoPhi")
+    pl.grid(1)
+    pl.tight_layout()
     pl.savefig("beta-data.png")
     stanio.rdump(
         "beta.R",
