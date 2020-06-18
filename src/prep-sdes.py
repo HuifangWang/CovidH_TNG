@@ -49,7 +49,7 @@ def load_phi():
 def main():
     df_r = load_r0t().loc[0:60]
     df_m = load_mob().loc[0:60]
-    df_p = load_phi().iloc[1:9]  # not daily, but 8 weeks
+    df_p = load_phi().loc[0:60]  # not daily, but 8 weeks
     pl.subplot(311)
     pl.plot(df_r.index, np.r_[df_r])
     pl.title("RKI R 7 day")
@@ -63,13 +63,14 @@ def main():
     pl.title("CosmoPhi")
     pl.grid(1)
     pl.tight_layout()
-    pl.savefig("beta-data.png")
+    pl.savefig("sdes-data.png")
     stanio.rdump(
-        "beta.R",
+        "sdes.R",
         {
             "nt": len(df_r.index),
             "r": np.r_[df_r][:, 0],
             "m": np.r_[df_m][:, 0] / 100,
+            "nP": df_p.index.size,
             "iP": np.r_[df_p.index] + 1,
             "P": np.r_[df_p][:, 0],
         },
