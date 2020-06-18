@@ -17,7 +17,9 @@ def fix_t0(df, date_key):
 def load_rki_r():
     dk = "date_of_disease_onset"
     "Load Robert Koch Institute reproduction rate values."
-    df = pd.read_csv("../data/processed/germany_rki_nowcasting.csv", parse_dates=[dk])
+    df = pd.read_csv(
+        "../data/processed/germany_rki_nowcasting.csv", parse_dates=[dk]
+    )
     df = fix_t0(df, dk)
     df = df.filter(regex="^R_.*point")
     return df
@@ -26,7 +28,8 @@ def load_rki_r():
 def load_mob():
     dk = "date"
     df = pd.read_csv(
-        "../data/processed/germany_google_mobility_report.csv", parse_dates=[dk]
+        "../data/processed/germany_google_mobility_report.csv",
+        parse_dates=[dk],
     )
     df = fix_t0(df, dk)
     df = df.filter(regex="retail")
@@ -35,7 +38,9 @@ def load_mob():
 
 def load_phi():
     dk = "date"
-    df = pd.read_csv("../data/processed/germany_cosmo_phi.csv", parse_dates=[dk])
+    df = pd.read_csv(
+        "../data/processed/germany_cosmo_phi.csv", parse_dates=[dk]
+    )
     df = fix_t0(df, dk)
     df = df.filter(regex="phi")
     return df
