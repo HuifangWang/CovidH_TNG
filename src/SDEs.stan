@@ -1,55 +1,55 @@
 data {
-  int nt; // 60 days starting March 10th
-  vector[nt] r; // RKI R 7 day now-cast
+  int nt; // 65 days starting March 1st
+  vector[nt] r; // ICL R0(t) estimate
   vector[nt] m; // Google mobility retail & recr / 100%
-  int iP[8];
-  vector[8] P;
+  int nC;
+  int iC[nC];
+  vector[nC] C;
+  real Cl[2];
 }
 
 transformed data {
   real alpha = 1.0 / 14.0;
+  real h = 0.1;
+  real sigma = 30.0;
 }
 
 parameters {
-  vector[nt-1] z;
-  real a;
   real g;
-  real l;
-  real s;
+  real G;
+  real c;
+  real p0;
+  //real Cl[2];
 }
 
 transformed parameters {
-  vector[nt] b = r*alpha;
-  vector[nt] p_ = rep_vector(b[1],nt);
-  vector[nt] p;
+  // init vectors at decl to avoid NaNs
+  vector[nt] b = rep_vector(r[1]*alpha,nt);
+  vector[nt] p = rep_vector(p0,nt);
   vector[nt] u = rep_vector(0,nt);
+  // step from t to t+1
   for (t in 1:nt-1) {
-    real Js = t*1.0/nt*0.13; // NY 40%, 2mo
-    real db = (b[1] + a*m[t] - Js + g*u[t]) - l*b[t];
-    real dp = (b[t] - p_[t] + u[t]*0.9)/3.0;
-    real du = (b[1] - b[t] - u[t])/21.0;
-    b[t+1] = b[t] + db + s*z[t];
-    p_[t+1] = p_[t] + dp;
-    u[t+1] = u[t] + du;
+    real Js = 0.4/2.0*(1-cos((2*pi()*(t - 15 + 29 + 31))/365.0));
+    real db = (b[1] + (0.4*m[t]+0.05) - Js - g*(p[t] - p[1])) - b[t];
+    real dp = -(p[t] - p[1] + h*m[t]) - c*tanh(2*u[t]);
+    real du = -G*(b[t] - b[1]);
+    b[t+1] = max([0.0, b[t] + db]);
+    p[t+1] = p[t] + dp;
+    u[t+1] = u[t] + du/sigma;
   }
-  p = (p_ - b[1]) * 35;
+  vector[nt-1] Ch = Cl[1]*(p[2:] - p[1:nt-1]) + Cl[2];
+
 }
 
 model {
   // priors
-  to_vector(z) ~ std_normal();
-  l ~ lognormal(1,1);
-  a ~ std_normal();
-  s ~ lognormal(0,1);
-  g ~ lognormal(0.1,1);
-  // condition on data
-  r ~ normal(b/alpha,s);
-  P ~ normal(p[iP],sqrt(s));
-}
-
-generated quantities {
-  vector[nt] gq_r;
-  vector[8] gq_P;
-  for (t in 1:nt) gq_r[t] = normal_rng(b[t]/alpha,s);
-  for (t in 1: 8) gq_P[t] = normal_rng(p[iP[t]], sqrt(s));
+  g ~ normal(0,1); // 0.3, g=0 is null hypothesis
+  G ~ normal(1,0.1); // 1
+  c ~ normal(1,0.1); // 1
+  p0 ~ normal(0.5,0.1);
+  //Cl[1] ~ normal(10,2);
+  //Cl[2] ~ normal(0.5,0.5);
+  // data
+  r ~ normal(b/alpha, 0.4);
+  C ~ normal(Ch[iC],0.01);
 }
