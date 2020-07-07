@@ -5,7 +5,7 @@ data {
   int nC;
   int iC[nC];
   vector[nC] C;
-  real Cl[2];
+  // real Cl[2];
 }
 
 transformed data {
@@ -19,7 +19,7 @@ parameters {
   real G;
   real c;
   real p0;
-  //real Cl[2];
+  real Cl[2];
 }
 
 transformed parameters {
@@ -43,12 +43,12 @@ transformed parameters {
 
 model {
   // priors
-  g ~ normal(0,1); // 0.3, g=0 is null hypothesis
+  g ~ normal(0.1,0.1); // 0.3, g=0 is null hypothesis
   G ~ normal(1,0.1); // 1
   c ~ normal(1,0.1); // 1
   p0 ~ normal(0.5,0.1);
-  //Cl[1] ~ normal(10,2);
-  //Cl[2] ~ normal(0.5,0.5);
+  Cl[1] ~ normal(10,2);
+  Cl[2] ~ normal(0.5,0.5);
   // data
   r ~ normal(b/alpha, 0.4);
   C ~ normal(Ch[iC],0.01);
