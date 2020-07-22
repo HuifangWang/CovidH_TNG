@@ -12,7 +12,7 @@ def format_xaxis_dates(ax, rotation=45):
     )
     ax.xaxis.set_tick_params(rotation=rotation)
 
-def annotate_interventions(ax,country, legend=False):
+def annotate_interventions(ax,country, legend=False, bbox_offset=-0.3):
     types = [
             'Schools + Universities',
             'Public events',
@@ -44,7 +44,7 @@ def annotate_interventions(ax,country, legend=False):
 
         legends = [c for c in ax.get_children() if isinstance(c, matplotlib.legend.Legend)]
 
-        ax.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, -0.3), ncol=2)
+        ax.legend(handles=legend_elements, loc='center', bbox_to_anchor=(0.5, bbox_offset), ncol=2)
 
         for legend in legends:
             ax.add_artist(legend)
