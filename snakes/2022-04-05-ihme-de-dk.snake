@@ -1,0 +1,36 @@
+from src import data
+import pandas as pd
+
+
+rule all:
+    input:
+        os.path.join(data.data_root, 'processed', 'germany_ihme.csv'),
+        os.path.join(data.data_root, 'processed', 'denmark_ihme.csv'),
+
+rule ihme:
+    input:
+        ihme_raw_20 = os.path.join(
+                data.data_root, 'external', 'ihme', 'data_download_file_reference_2020.csv'
+        ),
+        ihme_raw_21 = os.path.join(
+                data.data_root, 'external', 'ihme', 'data_download_file_reference_2021.csv'
+        ),
+        ihme_raw_22 = os.path.join(
+                data.data_root, 'external', 'ihme', 'data_download_file_reference_2022.csv'
+        )
+    output:
+        ihme_dk = os.path.join(data.data_root, 'processed', 'denmark_ihme.csv'),
+        ihme_de = os.path.join(data.data_root, 'processed', 'germany_ihme.csv'),
+    run:
+        df = pd.concat(
+                [ 
+                    pd.read_csv(path) for path in 
+                    [input.ihme_raw_20, input.ihme_raw_21, input.ihme_raw_22]
+                ]
+        )
+        df['date'] = pd.to_datetime(df['date'])
+        df_dk = df[df.location_id==78].copy()
+        df_de = df[df.location_id==81].copy()
+        df_de.to_csv(output.ihme_de)
+        df_dk.to_csv(output.ihme_dk)
+
